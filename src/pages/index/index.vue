@@ -3,50 +3,51 @@
 </script>
 
 <template>
-  <div class="layout">
-    <div class="portfolio">
-      <img src="/static/tabbar/logo.png" alt="头像" class="avatar" />
-      <div class="text">
-        <span class="username">张三</span> <br>
-        <span class="remind">有1张优惠券未使用，立即查看></span>
-      </div>
-      <div class="line1">
-      </div>
-      <div class="code">
-        <img src="/static/index/qrcode.svg" class="qr">
-        <span class="member">会员码</span>
-      </div>
-    </div>
-    <div class="panel">
-      <div class="pl">
-        <img src="/static/index/qrcode.svg" alt="" class="picture1">
-        <span class="l1">门店自取</span>
-        <span class="l2">下单免排队</span>
-      </div>
-      <div class="line2"></div>
-      <div class="pr">
-        <img src="/static/index/qrcode.svg" alt="" class="picture2">
-        <span class="r1">外卖</span>
-        <span class="r2">配送到家</span>
-      </div>
-    </div>
-    <div class="banner">
-      <div class="banner-1">
-        <span class="t1">百货</span>
-        <span class="t2">百货优惠</span>
-      </div>
-      <div class="line3"></div>
-      <div class="banner-1">
-        <span class="t1">团餐</span>
-        <span class="t2">企业欢聚享福利</span>
-      </div>
-      <div class="line3"></div>
-      <div class="banner-1">
-        <span class="t1">送礼</span>
-        <span class="t2">送礼更有面子</span>
-      </div>
-    </div>
-  </div>
+  <view class="layout">
+    <view class="portfolio">
+      <img src="/static/index/qrcode.svg" alt="头像" class="avatar" />
+      <view class="text">
+        <text class="username">张三</text>
+        <br>
+        <text class="remind">有1张优惠券未使用，立即查看></text>
+      </view>
+      <view class="line1">
+      </view>
+      <view class="code">
+        <img src="/static/index/qrcode.svg" class="qr" />
+        <text class="member">会员码</text>
+      </view>
+    </view>
+    <view class="panel">
+      <view class="pl">
+        <image src="/static/index/qrcode.svg" alt="" class="picture1" />
+        <text class="l1">门店自取</text>
+        <text class="l2">下单免排队</text>
+      </view>
+      <view class="line2"></view>
+      <view class="pr">
+        <image src="/static/index/qrcode.svg" alt="" class="picture2" />
+        <text class="r1">外卖</text>
+        <text class="r2">配送到家</text>
+      </view>
+    </view>
+    <view class="banner">
+      <view class="banner-1">
+        <text class="t1">百货</text>
+        <text class="t2">百货优惠</text>
+      </view>
+      <view class="line3"></view>
+      <view class="banner-1">
+        <text class="t1">团餐</text>
+        <text class="t2">企业欢聚享福利</text>
+      </view>
+      <view class="line3"></view>
+      <view class="banner-1">
+        <text class="t1">送礼</text>
+        <text class="t2">送礼更有面子</text>
+      </view>
+    </view>
+  </view>
 </template>
 
 <style scoped lang="scss">
@@ -66,25 +67,24 @@
     justify-content: space-between;
     background: rgba(254, 255, 254, 1);
     width: 92%;
-    height: 90px;
+    height: 150rpx;
     border-radius: 10px;
-    margin-top: 130px;
+    margin-top: 150rpx;
 
     .avatar {
-      width: 40px;
-      height: 40px;
+      width: 70rpx;
+      height: 70rpx;
       border-radius: 50%;
-      margin-left: 20px;
+      margin-left: 30rpx;
     }
 
     .text {
-      margin-right: 40px;
       .username {
-        font-size: 16px;
+        font-size: 1rem;
         font-weight: bold;
       }
       .remind {
-        font-size: 12px;
+        font-size: 0.75rem;
         opacity: 0.5;
       }
 
@@ -92,11 +92,11 @@
 
     .line1 {
         width: 1px;
-        height: 30px;
+        height:50rpx;
         background-color: gainsboro;
         opacity: 0.5;
-        margin-left: 20px;
-        margin-right: 20px;
+        margin-left: 20rpx;
+        margin-right: 20rpx;
       }
 
     .code {
@@ -104,14 +104,14 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      margin-right: 20px;
+      margin-right: 30rpx;
       .qr {
-        width: 25px;
-        height: 25px;
-        margin-bottom: 5px;
+        width: 50rpx;
+        height: 50rpx;
+        margin-bottom: 10rpx;
       }
       .member {
-        font-size: 14px;
+        font-size: 0.8rem;
         opacity: 0.5;
         font-weight: bold;
       }
@@ -121,9 +121,9 @@
   .panel {
     background-color: rgba(254, 255, 254, 1);
     width: 92%;
-    height: 200px;
+    height: 300rpx;
     border-radius: 10px;
-    margin-top: 12px;
+    margin-top: 20rpx;
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -134,25 +134,25 @@
       flex-direction: column;
       align-items: center;
       .picture1 {
-        width: 70px;
-        height: 70px;
+        width: 120rpx;
+        height: 120rpx;
         border-radius: 50%;
-        margin-bottom: 10px;
+        margin-bottom: 20rpx;
       }
       .l1 {
-        font-size: 18px;
+        font-size: 1rem;
         font-weight: bold;
-        margin-bottom: 5px;
+        margin-bottom: 10rpx;
       }
       .l2 {
-        font-size: 12px;
+        font-size: 0.75rem;
         font-weight: bold;
         opacity: 0.5;
       }
     }
     .line2 {
       width: 1px;
-      height: 150px;
+      height: 220rpx;
       background-color: gainsboro;
       opacity: 0.5;
     }
@@ -161,18 +161,18 @@
       flex-direction: column;
       align-items: center;
       .picture2 {
-        width: 70px;
-        height: 70px;
+        width: 120rpx;
+        height: 120rpx;
         border-radius: 50%;
-        margin-bottom: 10px;
+        margin-bottom: 20rpx;
       }
       .r1 {
-        font-size: 18px;
+        font-size: 1rem;
         font-weight: bold;
-        margin-bottom: 5px;
+        margin-bottom: 10rpx;
       }
       .r2 {
-        font-size: 12px;
+        font-size: 0.75rem;
         font-weight: bold;
         opacity: 0.5;
       }
@@ -182,9 +182,9 @@
   .banner {
     background-color: rgba(254, 255, 254, 1);
     width: 92%;
-    height: 130px;
+    height: 150rpx;
     border-radius: 10px;
-    margin-top: 12px;
+    margin-top: 20rpx;
     display: flex;
     flex-direction: row; 
     align-items: center;
@@ -195,15 +195,14 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      // TODO 样式后期可能会更改
-      width: 150px;
+      width: 180rpx;
       .t1 {
-        font-size: 18px;
+        font-size: 1rem;
         font-weight: bold;
-        margin-bottom: 5px;
+        margin-bottom: 10rpx;
       }
       .t2 {
-        font-size: 12px;
+        font-size: 0.75rem;
         font-weight: bold;
         opacity: 0.5;
       }
@@ -211,7 +210,7 @@
     
     .line3 {
       width: 1px;
-      height: 80px;
+      height: 100rpx;
       background-color: gainsboro;
       opacity: 0.5;
     }
