@@ -9,7 +9,7 @@
 		{
 			"path": "pages/order/index",
 			"style": {
-				"navigationBarTitleText": "点餐"
+				"navigationBarTitleText": "点单"
 			}
 		},
 		{
@@ -33,31 +33,31 @@
 	},
 	"tabBar": {
 		"color": "#7A7E83",
-		"selectedColor": "#3cc51f",
+		"selectedColor": "#1296db",
 		"list": [
 			{
 				"pagePath": "pages/index/index",
 				"text": "首页",
-				"iconPath": "static/tabbar/logo.png",
-				"selectedIconPath": "static/tabbar/logo.png"
+				"iconPath": "static/tabbar/home.png",
+				"selectedIconPath": "static/tabbar/home-color.png"
 			},
 			{
 				"pagePath": "pages/order/index",
 				"text": "点餐",
-				"iconPath": "static/tabbar/logo.png",
-				"selectedIconPath": "static/tabbar/logo.png"
+				"iconPath": "static/tabbar/cart.png",
+				"selectedIconPath": "static/tabbar/cart-color.png"
 			},
 			{
 				"pagePath": "pages/record/index",
 				"text": "订单",
-				"iconPath": "static/tabbar/logo.png",
-				"selectedIconPath": "static/tabbar/logo.png"
+				"iconPath": "static/tabbar/order.png",
+				"selectedIconPath": "static/tabbar/order-color.png"
 			},
 			{
 				"pagePath": "pages/mine/index",
 				"text": "我的",
-				"iconPath": "static/tabbar/logo.png",
-				"selectedIconPath": "static/tabbar/logo.png"
+				"iconPath": "static/tabbar/my.png",
+				"selectedIconPath": "static/tabbar/my-color.png"
 			}
 		]
 	}
