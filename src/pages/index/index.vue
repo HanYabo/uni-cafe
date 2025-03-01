@@ -27,8 +27,8 @@
       <view class="line2"></view>
       <view class="pr">
         <image src="/static/index/qrcode.svg" alt="" class="picture2" />
-        <text class="r1">外卖</text>
-        <text class="r2">配送到家</text>
+        <text class="r1">外卖闪送</text>
+        <text class="r2">配送到您家</text>
       </view>
     </view>
     <view class="banner">

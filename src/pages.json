@@ -1,6 +1,12 @@
 {
 	"pages": [
 		{
+			"path": "pages/login/index",
+			"style": {
+				"navigationBarTitleText": "登录"
+			}
+		},
+		{
 			"path": "pages/index/index",
 			"style": {
 				"navigationBarTitleText": "首页"
@@ -9,6 +15,7 @@
 		{
 			"path": "pages/order/index",
 			"style": {
+				"navigationStyle": "custom",
 				"navigationBarTitleText": "点单"
 			}
 		},
@@ -23,7 +30,7 @@
 			"style": {
 				"navigationBarTitleText": "我的"
 			}
-		},
+		}
 	],
 	"globalStyle": {
 		"navigationBarTextStyle": "black",
@@ -43,7 +50,7 @@
 			},
 			{
 				"pagePath": "pages/order/index",
-				"text": "点餐",
+				"text": "点单",
 				"iconPath": "static/tabbar/cart.png",
 				"selectedIconPath": "static/tabbar/cart-color.png"
 			},
