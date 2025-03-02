@@ -1,9 +1,46 @@
+<script setup>
+import { ref } from 'vue'
+
+// 响应式状态
+const phone = ref('')
+const password = ref('')
+const confirmPassword = ref('')
+
+// 方法
+const handleRegister = () => {
+  if (!phone.value || !password.value || !confirmPassword.value) {
+    uni.showToast({
+      title: '请填写完整信息',
+      icon: 'none'
+    })
+    return
+  }
+
+  if (password.value !== confirmPassword.value) {
+    uni.showToast({
+      title: '两次输入的密码不一致',
+      icon: 'none'
+    })
+    return
+  }
+
+  // TODO: 实现注册逻辑
+  console.log('注册', phone.value, password.value)
+}
+
+const goToLogin = () => {
+  uni.navigateTo({
+    url: '/pages/login/index'
+  })
+}
+</script>
+
 <template>
-  <view class="login-container">
-    <view class="login-box">
-      <view class="login-header">
-        <view class="login-title">欢迎回来</view>
-        <view class="login-subtitle">请登录您的账号</view>
+  <view class="register-container">
+    <view class="register-box">
+      <view class="register-header">
+        <view class="register-title">欢迎加入</view>
+        <view class="register-subtitle">创建您的账号</view>
       </view>
       
       <view class="input-group">
@@ -26,24 +63,28 @@
             class="input-item"
           />
         </view>
+        <view class="input-wrapper">
+          <text class="iconfont icon-lock input-icon"></text>
+          <input 
+            type="password" 
+            v-model="confirmPassword"
+            placeholder="请确认密码"
+            class="input-item"
+          />
+        </view>
       </view>
 
       <view class="btn-group">
-        <button @click="handleLogin" class="login-btn primary-btn" hover-class="button-hover">登录</button>
-        <button @click="handleWechatLogin" class="login-btn wechat-btn" hover-class="button-hover">
-          <text class="iconfont icon-wechat"></text>
-          微信一键登录
-        </button>
+        <button @click="handleRegister" class="register-btn primary-btn" hover-class="button-hover">注册</button>
       </view>
 
       <view class="additional-links">
-        <text class="link-text">忘记密码</text>
-        <text class="link-text" @click="handleRegister">注册账号</text>
+        <text class="link-text" @click="goToLogin">已有账号？立即登录</text>
       </view>
     </view>
 
-    <view class="login-footer">
-      <text class="footer-text">登录即代表同意</text>
+    <view class="register-footer">
+      <text class="footer-text">注册即代表同意</text>
       <text class="footer-link">用户协议</text>
       <text class="footer-text">和</text>
       <text class="footer-link">隐私政策</text>
@@ -51,41 +92,8 @@
   </view>
 </template>
 
-<script setup>
-import { ref } from 'vue'
-
-// 响应式状态
-const phone = ref('')
-const password = ref('')
-
-// 登录
-const handleLogin = () => {
-  if (!phone.value || !password.value) {
-    uni.showToast({
-      title: '请输入手机号和密码',
-      icon: 'none'
-    })
-    return
-  }
-  // TODO: 实现登录逻辑
-  console.log('登录', phone.value, password.value)
-}
-
-// 注册
-const handleRegister = () => {
-  uni.navigateTo({
-    url: '/pages/register/index'
-  })
-}
-
-const handleWechatLogin = () => {
-  // TODO: 实现微信登录逻辑
-  console.log('微信登录')
-}
-</script>
-
 <style lang="scss" scoped>
-.login-container {
+.register-container {
   min-height: 100vh;
   background-color: $uni-bg-color;
   display: flex;
@@ -97,7 +105,7 @@ const handleWechatLogin = () => {
   position: relative;
 }
 
-.login-box {
+.register-box {
   width: 100%;
   max-width: 600rpx;
   padding: 60rpx 40rpx;
@@ -106,19 +114,19 @@ const handleWechatLogin = () => {
   box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.08);
 }
 
-.login-header {
+.register-header {
   text-align: center;
   margin-bottom: 60rpx;
 }
 
-.login-title {
+.register-title {
   font-size: 48rpx;
   color: $uni-text-color;
   font-weight: bold;
   margin-bottom: 16rpx;
 }
 
-.login-subtitle {
+.register-subtitle {
   font-size: 28rpx;
   color: $uni-text-color-grey;
 }
@@ -168,7 +176,7 @@ const handleWechatLogin = () => {
   margin-bottom: 40rpx;
 }
 
-.login-btn {
+.register-btn {
   width: 100%;
   height: 90rpx;
   border-radius: 12rpx;
@@ -181,33 +189,19 @@ const handleWechatLogin = () => {
 }
 
 .primary-btn {
-  background-color: $uni-color-primary;
+  background: linear-gradient(135deg, #1296db, #0f85c7);
   color: #fff;
+  box-shadow: 0 4rpx 12rpx rgba(18, 150, 219, 0.2);
   
   &.button-hover {
     opacity: 0.9;
     transform: translateY(2rpx);
-  }
-}
-
-.wechat-btn {
-  background-color: #07c160;
-  color: #fff;
-  
-  &.button-hover {
-    opacity: 0.9;
-    transform: translateY(2rpx);
-  }
-  
-  .icon-wechat {
-    margin-right: 12rpx;
-    font-size: 36rpx;
   }
 }
 
 .additional-links {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   padding: 0 20rpx;
 }
 
@@ -216,7 +210,7 @@ const handleWechatLogin = () => {
   color: $uni-color-primary;
 }
 
-.login-footer {
+.register-footer {
   position: absolute;
   bottom: 60rpx;
   text-align: center;

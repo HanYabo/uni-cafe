@@ -89,14 +89,32 @@ onMounted(() => {
   }
 })
 
-// 计算内容区域的样式
-const contentStyle = computed(() => {
-  // 顶部偏移 = 状态栏 + 导航栏 + 店铺信息高度
-  const topOffset = statusBarHeight.value + navBarHeight.value + 120 // 增加店铺信息高度为120px
-  const bottomOffset = safeAreaInsets.value.bottom + 50 // 购物车高度50px
+// 计算店铺信息的位置和高度
+const shopInfoStyle = computed(() => {
+  const menuButton = wx.getMenuButtonBoundingClientRect()
+  const navHeight = menuButton.height + (menuButton.top - statusBarHeight.value) * 2
   return {
-    paddingTop: `${topOffset}px`,
-    paddingBottom: `${bottomOffset}px`
+    top: `${statusBarHeight.value + navHeight}px`,
+    height: '120px',
+    paddingTop: '12px',
+    paddingBottom: '12px',
+    boxSizing: 'border-box'
+  }
+})
+
+// 计算主内容区域的样式
+const contentStyle = computed(() => {
+  const menuButton = wx.getMenuButtonBoundingClientRect()
+  const navHeight = menuButton.height + (menuButton.top - statusBarHeight.value) * 2
+  const shopInfoHeight = 120 // 店铺信息高度
+  const topOffset = statusBarHeight.value + navHeight + shopInfoHeight
+  const cartHeight = 50 // 购物车高度
+  const bottomSafeArea = safeAreaInsets.value.bottom || 0
+
+  return {
+    top: `${topOffset}px`,
+    height: `calc(100vh - ${topOffset}px - ${cartHeight}px - ${bottomSafeArea}px)`,
+    boxSizing: 'border-box'
   }
 })
 
@@ -128,15 +146,6 @@ const navContentStyle = computed(() => {
     lineHeight: `${menuButton.height}px`,
     top: `${menuButton.top - statusBarHeight.value}px`,
     paddingRight: `${menuButton.width + 12}px`
-  }
-})
-
-// 修改店铺信息的top计算
-const shopInfoStyle = computed(() => {
-  const menuButton = wx.getMenuButtonBoundingClientRect()
-  const navHeight = menuButton.height + (menuButton.top - statusBarHeight.value) * 2
-  return {
-    top: `${statusBarHeight.value + navHeight}px`
   }
 })
 
@@ -217,7 +226,7 @@ const searchBtnStyle = computed(() => {
     </view>
 
     <!-- 主内容区 -->
-    <view class="main-content" :style="mainContentStyle">
+    <view class="main-content" :style="contentStyle">
       <!-- 左侧分类导航 -->
       <scroll-view scroll-y class="category-list">
         <view
@@ -277,7 +286,8 @@ const searchBtnStyle = computed(() => {
 .order-container {
   min-height: 100vh;
   background: #f7f7f7;
-  padding-bottom: 50px;
+  position: relative;
+  box-sizing: border-box;
 }
 
 .nav-bar {
@@ -345,17 +355,15 @@ const searchBtnStyle = computed(() => {
   left: 0;
   right: 0;
   background: #fff;
-  padding: 16px;
-  height: 76px; // 固定店铺信息高度
-  display: flex;
-  justify-content: space-between;
   z-index: 99;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 
   .shop-header {
-    padding: 12px 16px;
+    height: 100%;
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
+    padding: 0 16px;
 
     .left {
       flex: 1;
@@ -474,16 +482,21 @@ const searchBtnStyle = computed(() => {
 
 .main-content {
   display: flex;
-  height: 100%; // 修改高度设置
-  position: relative; // 添加相对定位
+  width: 100%;
+  position: fixed;
+  left: 0;
+  right: 0;
+  background: #f7f7f7;
+  z-index: 1;
+  overflow: hidden;
 
   .category-list {
-    position: fixed; // 固定左侧分类列表
-    left: 0;
     width: 90px;
+    height: 100%;
     background: #f7f7f7;
-    height: calc(100% - var(--window-top)); // 使用计算高度
-    padding-bottom: 50px; // 为底部购物车留出空间
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
 
     .category-item {
       height: 48px;
@@ -493,6 +506,8 @@ const searchBtnStyle = computed(() => {
       font-size: 14px;
       color: #666;
       position: relative;
+      box-sizing: border-box;
+      white-space: nowrap;
 
       &.active {
         background: #fff;
@@ -515,16 +530,23 @@ const searchBtnStyle = computed(() => {
   }
 
   .product-list {
-    margin-left: 90px; // 为左侧分类列表留出空间
     flex: 1;
+    height: 100%;
     background: #fff;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     padding: 16px;
-    min-height: calc(100vh - var(--window-top) - 50px); // 计算最小高度
+    box-sizing: border-box;
 
     .section-title {
       font-size: 16px;
       font-weight: 500;
       margin-bottom: 16px;
+      position: sticky;
+      top: 0;
+      background: #fff;
+      z-index: 2;
+      padding: 8px 0;
     }
 
     .product-item {
@@ -613,6 +635,7 @@ const searchBtnStyle = computed(() => {
   align-items: center;
   box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
   z-index: 99;
+  box-sizing: border-box;
 
   .cart-left {
     flex: 1;
@@ -666,21 +689,14 @@ const searchBtnStyle = computed(() => {
   padding-top: env(safe-area-inset-top);
 }
 
-// 将滚动条样式移到最外层
+// 修改滚动条样式的位置和实现
 .category-list,
 .product-list {
   &::-webkit-scrollbar {
-    display: none !important; // 添加 !important 确保生效
-    width: 0 !important;
-    height: 0 !important;
+    display: none;
   }
-  scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none; /* IE and Edge */
-  overflow: -moz-scrollbars-none; /* 老版本 Firefox */
-}
-
-// 移除之前嵌套在 .main-content 中的滚动条样式
-.main-content {
-  // ... 其他样式保持不变
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  overflow: -moz-scrollbars-none;
 }
 </style>

@@ -1,15 +1,21 @@
 {
 	"pages": [
 		{
+			"path": "pages/index/index",
+			"style": {
+				"navigationBarTitleText": "首页"
+			}
+		},
+		{
 			"path": "pages/login/index",
 			"style": {
 				"navigationBarTitleText": "登录"
 			}
 		},
 		{
-			"path": "pages/index/index",
+			"path": "pages/register/index",
 			"style": {
-				"navigationBarTitleText": "首页"
+				"navigationBarTitleText": "注册"
 			}
 		},
 		{
@@ -51,8 +57,8 @@
 			{
 				"pagePath": "pages/order/index",
 				"text": "点单",
-				"iconPath": "static/tabbar/cart.png",
-				"selectedIconPath": "static/tabbar/cart-color.png"
+				"iconPath": "static/tabbar/cup.png",
+				"selectedIconPath": "static/tabbar/cup-color.png"
 			},
 			{
 				"pagePath": "pages/record/index",

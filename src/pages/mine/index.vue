@@ -1,44 +1,117 @@
 <script setup>
+import { onMounted, ref } from 'vue'
 
+const statusBarHeight = ref(0)
+
+onMounted(() => {
+  const systemInfo = uni.getSystemInfoSync()
+  statusBarHeight.value = systemInfo.statusBarHeight || 0
+})
+
+const handleLogin = () => {
+  uni.navigateTo({
+    url: '/pages/login/index'
+  })
+}
+
+// 优惠券数据
+const coupons = ref([
+  {
+    id: 1,
+    type: '满减券',
+    amount: 10,
+    condition: '满30可用',
+    expireDate: '2024-04-30'
+  },
+  {
+    id: 2,
+    type: '折扣券',
+    amount: 8.8,
+    condition: '无门槛',
+    expireDate: '2024-04-15'
+  }
+])
 </script>
 
 <template>
-  <div class="layout">
-    <div class="portfolio">
-      <img src="/static/index/qrcode.svg" alt="头像" class="avatar" />
-      <div class="text">
-        <span class="username">Hello!</span> <br>
-        <span class="remind">登录享受更多精彩服务</span>
+  <div class="layout" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <div class="safe-area">
+      <div class="portfolio">
+        <img src="/static/index/qrcode.svg" alt="头像" class="avatar" />
+        <div class="text">
+          <span class="username">Hello!</span> <br>
+          <span class="remind">登录享受更多精彩服务</span>
+        </div>
+        <div class="btn" @click="handleLogin">注册/登录</div>
       </div>
-      <div class="btn">注册/登录</div>
-    </div>
-    <div class="util">
-      <div>
-        <h1>常用功能</h1>
+      
+      <!-- 优惠券模块 -->
+      <div class="coupon-section">
+        <div class="coupon-header">
+          <text class="coupon-title">我的优惠券</text>
+          <text class="coupon-more">查看全部 ></text>
+        </div>
+        <div class="coupon-list">
+          <div class="coupon-item" v-for="coupon in coupons" :key="coupon.id">
+            <div class="coupon-left">
+              <div class="amount-wrap">
+                <text class="symbol" v-if="coupon.type === '满减券'">¥</text>
+                <text class="amount">{{ coupon.amount }}</text>
+                <text class="unit" v-if="coupon.type === '折扣券'">折</text>
+              </div>
+              <text class="condition">{{ coupon.condition }}</text>
+            </div>
+            <div class="coupon-right">
+              <text class="type">{{ coupon.type }}</text>
+              <text class="date">有效期至：{{ coupon.expireDate }}</text>
+              <div class="use-btn">立即使用</div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="item">
-        <img src="/static/index/qrcode.svg" alt="" class="icon">
-        <span class="text">地址管理</span>
-      </div>
-      <div class="item">
-        <img src="/static/index/qrcode.svg" alt="" class="icon">
-        <span class="text">发票管理</span>
-      </div>
-      <div class="item">
-        <img src="/static/index/qrcode.svg" alt="" class="icon">
-        <span class="text">设置</span>
-      </div>
-      <div class="item">
-        <img src="/static/index/qrcode.svg" alt="" class="icon">
-        <span class="text">关注公众号</span>
-      </div>
-      <div class="item">
-        <img src="/static/index/qrcode.svg" alt="" class="icon">
-        <span class="text">在线客服</span>
-      </div>
-      <div class="item">
-        <img src="/static/index/qrcode.svg" alt="" class="icon">
-        <span class="text">条款与证明</span>
+      
+      <div class="util">
+        <div class="util-header">
+          <text class="util-title">常用功能</text>
+        </div>
+        <div class="util-grid">
+          <div class="grid-item">
+            <div class="icon-wrapper">
+              <image src="/static/mine/address.png" class="icon" />
+            </div>
+            <text class="text">地址管理</text>
+          </div>
+          <div class="grid-item">
+            <div class="icon-wrapper">
+              <image src="/static/mine/invoice.png" class="icon" />
+            </div>
+            <text class="text">发票管理</text>
+          </div>
+          <div class="grid-item">
+            <div class="icon-wrapper">
+              <image src="/static/mine/setting.png" class="icon" />
+            </div>
+            <text class="text">设置</text>
+          </div>
+          <div class="grid-item">
+            <div class="icon-wrapper">
+              <image src="/static/mine/wechat.png" class="icon" />
+            </div>
+            <text class="text">关注公众号</text>
+          </div>
+          <div class="grid-item">
+            <div class="icon-wrapper">
+              <image src="/static/mine/service.png" class="icon" />
+            </div>
+            <text class="text">在线客服</text>
+          </div>
+          <div class="grid-item">
+            <div class="icon-wrapper">
+              <image src="/static/mine/terms.png" class="icon" />
+            </div>
+            <text class="text">条款与证明</text>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -49,81 +122,308 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  height: 100vh;
-  background: rgba(216, 216, 216, 1);
+  min-height: 100vh;
+  background: rgba(246, 246, 246, 1);
+}
 
-  .portfolio {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    background: rgba(254, 255, 254, 1);
-    width: 92%;
-    height: 90px;
-    border-radius: 10px;
-    margin-top: 130px;
+.safe-area {
+  width: 92%;
+  padding: 20rpx 0;
+}
 
-    .avatar {
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-      margin-left: 20px;
+.portfolio {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  background: #ffffff;
+  height: 150rpx;
+  border-radius: 16rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    right: -60rpx;
+    top: -60rpx;
+    width: 200rpx;
+    height: 200rpx;
+    background: rgba(18, 150, 219, 0.1);
+    border-radius: 50%;
+    z-index: 0;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    left: 40%;
+    bottom: -80rpx;
+    width: 160rpx;
+    height: 160rpx;
+    background: rgba(18, 150, 219, 0.05);
+    border-radius: 50%;
+    z-index: 0;
+  }
+
+  .avatar {
+    width: 80rpx;
+    height: 80rpx;
+    border-radius: 50%;
+    margin-left: 30rpx;
+    background: linear-gradient(45deg, rgba(18, 150, 219, 0.1), rgba(18, 150, 219, 0.2));
+    padding: 15rpx;
+    z-index: 1;
+  }
+
+  .text {
+    margin-left: 20rpx;
+    flex: 1;
+    z-index: 1;
+    
+    .username {
+      font-size: 32rpx;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 6rpx;
+      display: block;
     }
-
-    .text {
-      margin-right: 90px;
-      .username {
-        font-size: 16px;
-        font-weight: bold;
-      }
-      .remind {
-        font-size: 12px;
-        opacity: 0.5;
-      }
-    }
-
-    .btn {
-      width: 80px;
-      height: 35px;
-      background: skyblue;
-      border-radius: 20px;
-      margin-right: 20px;
-      opacity: 0.7;
-      font-size: 11px;
-      font-weight: bold;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+    
+    .remind {
+      font-size: 24rpx;
+      color: #666;
+      opacity: 0.8;
+      display: block;
+      margin-top: 6rpx;
     }
   }
 
-  .util {
+  .btn {
+    min-width: 160rpx;
+    height: 70rpx;
+    background: linear-gradient(135deg, #1296db, #0f85c7);
+    border-radius: 35rpx;
+    margin-right: 30rpx;
+    padding: 0 30rpx;
+    font-size: 26rpx;
     display: flex;
-    flex-direction: column;
-    align-items: center;
     justify-content: center;
-    width: 92%;
-    
-    .item {
-      display: flex;
-      flex-direction: row;
-      align-items: center;
-      height: 50px;
-      width: 100%;
-      background: rgba(254, 255, 254, 1);
-      border-radius: 10px;
-      margin-top: 10px;
+    align-items: center;
+    color: #fff;
+    font-weight: 500;
+    z-index: 1;
+    box-shadow: 0 4rpx 12rpx rgba(18, 150, 219, 0.2);
+    transition: all 0.3s ease;
 
-      .icon {
-        width: 30px;
-        height: 30px;
-        margin-left: 20px;
+    &:active {
+      transform: scale(0.98);
+      box-shadow: 0 2rpx 6rpx rgba(18, 150, 219, 0.2);
+    }
+  }
+}
+
+.coupon-section {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  margin-bottom: 30rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    right: -60rpx;
+    top: -60rpx;
+    width: 200rpx;
+    height: 200rpx;
+    background: rgba(18, 150, 219, 0.1);
+    border-radius: 50%;
+    z-index: 0;
+  }
+
+  .coupon-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20rpx;
+    position: relative;
+    z-index: 1;
+
+    .coupon-title {
+      font-size: 32rpx;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .coupon-more {
+      font-size: 24rpx;
+      color: #666;
+    }
+  }
+
+  .coupon-list {
+    position: relative;
+    z-index: 1;
+
+    .coupon-item {
+      display: flex;
+      align-items: center;
+      height: 160rpx;
+      background: linear-gradient(45deg, rgba(18, 150, 219, 0.05), rgba(18, 150, 219, 0.1));
+      border-radius: 12rpx;
+      margin-bottom: 20rpx;
+      position: relative;
+      overflow: hidden;
+
+      &::after {
+        content: '';
+        position: absolute;
+        left: 220rpx;
+        top: 0;
+        bottom: 0;
+        width: 2rpx;
+        background: rgba(255, 255, 255, 0.8);
+        border-right: 2rpx dashed rgba(18, 150, 219, 0.2);
       }
 
+      .coupon-left {
+        width: 220rpx;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+
+        .amount-wrap {
+          display: flex;
+          align-items: baseline;
+
+          .symbol {
+            font-size: 32rpx;
+            color: #1296db;
+            margin-right: 4rpx;
+          }
+
+          .amount {
+            font-size: 60rpx;
+            font-weight: 600;
+            color: #1296db;
+            line-height: 1;
+          }
+
+          .unit {
+            font-size: 28rpx;
+            color: #1296db;
+            margin-left: 4rpx;
+          }
+        }
+
+        .condition {
+          font-size: 24rpx;
+          color: #666;
+          margin-top: 10rpx;
+        }
+      }
+
+      .coupon-right {
+        flex: 1;
+        padding: 20rpx 30rpx;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+
+        .type {
+          font-size: 28rpx;
+          font-weight: 500;
+          color: #333;
+          margin-bottom: 8rpx;
+        }
+
+        .date {
+          font-size: 22rpx;
+          color: #999;
+          margin-bottom: 16rpx;
+        }
+
+        .use-btn {
+          width: fit-content;
+          padding: 8rpx 24rpx;
+          background: linear-gradient(135deg, #1296db, #0f85c7);
+          border-radius: 24rpx;
+          color: #fff;
+          font-size: 24rpx;
+          box-shadow: 0 4rpx 12rpx rgba(18, 150, 219, 0.2);
+          transition: all 0.3s ease;
+
+          &:active {
+            transform: scale(0.98);
+            box-shadow: 0 2rpx 6rpx rgba(18, 150, 219, 0.2);
+          }
+        }
+      }
+    }
+  }
+}
+
+.util {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 16rpx;
+  padding: 30rpx;
+  box-sizing: border-box;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+
+  .util-header {
+    margin-bottom: 30rpx;
+    
+    .util-title {
+      font-size: 32rpx;
+      font-weight: 600;
+      color: #333;
+    }
+  }
+
+  .util-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 30rpx;
+    
+    .grid-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20rpx 0;
+      
+      .icon-wrapper {
+        width: 80rpx;
+        height: 80rpx;
+        background: rgba(18, 150, 219, 0.1);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 16rpx;
+        transition: all 0.3s ease;
+        
+        &:active {
+          transform: scale(0.95);
+          background: rgba(18, 150, 219, 0.15);
+        }
+        
+        .icon {
+          width: 40rpx;
+          height: 40rpx;
+        }
+      }
+      
       .text {
-        margin-left: 10px;
-        font-size: 14px;
+        font-size: 26rpx;
+        color: #333;
       }
     }
   }
