@@ -46,6 +46,14 @@ const products = ref([
     price: 23,
     image: '/static/order/cart.png',
     tags: ['支持配送', '含乳制品']
+  },
+  {
+    id: 5,
+    name: '冷萃不知寒',
+    desc: '大师监制高定系列，茶中别有韵，香极不知寒',
+    price: 23,
+    image: '/static/order/cart.png',
+    tags: ['支持配送', '含乳制品']
   }
 ])
 
@@ -60,6 +68,12 @@ const isNoticeExpanded = ref(false)
 
 // 添加配送方式状态控制
 const deliveryType = ref('自取') // '自取' | '外卖'
+
+// 添加购物袋状态控制
+const isCartPanelVisible = ref(false);
+
+// 添加全选状态
+const allSelected = ref(true);
 
 onMounted(() => {
   try {
@@ -170,6 +184,55 @@ const searchBtnStyle = computed(() => {
     right: `${menuButton.width + 24}px` // 24px 的安全距离
   }
 })
+
+// 切换购物袋面板显示状态
+const toggleCartPanel = () => {
+  isCartPanelVisible.value = !isCartPanelVisible.value;
+};
+
+// 关闭购物袋面板
+const closeCartPanel = () => {
+  isCartPanelVisible.value = false;
+};
+
+// 模拟购物袋数据
+const cartItems = ref([
+  {
+    id: 1,
+    name: '雪山多肉青提',
+    desc: 'PLA可降解吸管(推荐),需要配2个(备选果肉)',
+    price: 96,
+    quantity: 1,
+    image: '/static/order/cart.png',
+    checked: true
+  }
+]);
+
+// 计算总价
+const totalPrice = computed(() => {
+  return cartItems.value.reduce((total, item) => total + item.price * item.quantity, 0);
+});
+
+// 修改商品数量
+const changeQuantity = (item, change) => {
+  const newQuantity = item.quantity + change;
+  if (newQuantity < 1) return;
+  item.quantity = newQuantity;
+};
+
+// 切换全选状态
+const toggleSelectAll = () => {
+  allSelected.value = !allSelected.value;
+  cartItems.value.forEach(item => {
+    item.checked = allSelected.value;
+  });
+};
+
+// 清空购物袋
+const clearCart = () => {
+  cartItems.value = [];
+  closeCartPanel();
+};
 </script>
 
 <template>
@@ -240,27 +303,36 @@ const searchBtnStyle = computed(() => {
         </view>
       </scroll-view>
 
-      <!-- 右侧商品列表 -->
-      <scroll-view scroll-y class="product-list">
-        <view class="section-title">当季限定</view>
-        <view class="product-item" v-for="product in products" :key="product.id">
-          <image :src="product.image" class="product-image" mode="aspectFill" />
-          <view class="product-info">
-            <text class="product-name">{{ product.name }}</text>
-            <text class="product-desc">{{ product.desc }}</text>
-            <view class="tags">
-              <text v-for="(tag, index) in product.tags" :key="index" class="tag">{{ tag }}</text>
-            </view>
-            <view class="product-bottom">
-              <view class="price">
-                <text class="symbol">¥</text>
-                <text class="number">{{ product.price }}</text>
+      <!-- 右侧商品列表 - 使用遮罩层隐藏滚动条 -->
+      <view class="product-list-wrapper">
+        <scroll-view 
+          scroll-y 
+          class="product-list" 
+          :show-scrollbar="false"
+          enhanced
+        >
+          <view class="section-title">当季限定</view>
+          <view class="product-item" v-for="product in products" :key="product.id">
+            <image :src="product.image" class="product-image" mode="aspectFill" />
+            <view class="product-info">
+              <text class="product-name">{{ product.name }}</text>
+              <text class="product-desc">{{ product.desc }}</text>
+              <view class="tags">
+                <text v-for="(tag, index) in product.tags" :key="index" class="tag">{{ tag }}</text>
               </view>
-              <view class="select-btn">选规格</view>
+              <view class="product-bottom">
+                <view class="price">
+                  <text class="symbol">¥</text>
+                  <text class="number">{{ product.price }}</text>
+                </view>
+                <view class="select-btn">选规格</view>
+              </view>
             </view>
           </view>
-        </view>
-      </scroll-view>
+        </scroll-view>
+        <!-- 添加遮罩层覆盖滚动条 -->
+        <view class="scrollbar-mask"></view>
+      </view>
     </view>
 
     <!-- 购物车栏 -->
@@ -271,13 +343,56 @@ const searchBtnStyle = computed(() => {
       }"
     >
       <view class="cart-left">
-        <view class="cart-icon">
+        <view class="cart-icon" @tap="toggleCartPanel">
           <image src="/static/order/cart.png" mode="aspectFit" />
-          <text class="badge">6</text>
+          <text class="badge">{{ cartItems.length }}</text>
         </view>
-        <text class="total">¥156</text>
+        <text class="total">¥{{ totalPrice }}</text>
       </view>
       <view class="checkout-btn">结算</view>
+    </view>
+
+    <!-- 购物袋弹出面板 -->
+    <view class="cart-panel-container" :class="{ visible: isCartPanelVisible }" @tap="closeCartPanel">
+      <view class="cart-panel" @tap.stop>
+        <view class="panel-header">
+          <view class="select-all" @tap="toggleSelectAll">
+            <view class="checkbox" :class="{ checked: allSelected }">
+              <text class="check-icon" v-if="allSelected">✓</text>
+            </view>
+            <text>全选</text>
+          </view>
+          <view class="clear-cart" @tap="clearCart">
+            <text>清空购物袋</text>
+          </view>
+        </view>
+        
+        <scroll-view scroll-y class="cart-items">
+          <view class="cart-item" v-for="item in cartItems" :key="item.id">
+            <image class="product-image" :src="item.image" mode="aspectFill" />
+            <view class="product-info">
+              <text class="product-name">{{ item.name }}</text>
+              <text class="product-desc">{{ item.desc }}</text>
+              <view class="price-quantity">
+                <text class="price">¥{{ item.price }}</text>
+                <view class="quantity-control">
+                  <text class="minus" @tap="changeQuantity(item, -1)">－</text>
+                  <text class="quantity">{{ item.quantity }}</text>
+                  <text class="plus" @tap="changeQuantity(item, 1)">＋</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </scroll-view>
+
+        <view class="panel-footer">
+          <view class="total-price">
+            <text>合计：</text>
+            <text class="price">¥{{ totalPrice }}</text>
+          </view>
+          <view class="checkout-btn">结算</view>
+        </view>
+      </view>
     </view>
   </view>
 </template>
@@ -498,6 +613,13 @@ const searchBtnStyle = computed(() => {
     -webkit-overflow-scrolling: touch;
     box-sizing: border-box;
 
+    &::-webkit-scrollbar {
+      width: 0;
+      display: none;
+    }
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+
     .category-item {
       height: 48px;
       display: flex;
@@ -529,15 +651,47 @@ const searchBtnStyle = computed(() => {
     }
   }
 
-  .product-list {
+  .product-list-wrapper {
     flex: 1;
     height: 100%;
+    overflow: hidden;
+    position: relative;
     background: #fff;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    padding: 16px;
-    box-sizing: border-box;
+  }
 
+  .scrollbar-mask {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 12px; /* 减小遮罩宽度，只覆盖滚动条区域 */
+    height: 100%;
+    background: #fff;
+    z-index: 10;
+    pointer-events: none;
+  }
+
+  .product-list {
+    height: 100%;
+    width: calc(100% + 12px); /* 减小额外宽度 */
+    padding: 16px;
+    padding-right: 28px; /* 减小右侧padding */
+    box-sizing: border-box;
+    overflow-y: scroll;
+    position: absolute;
+    top: 0;
+    left: 0;
+    -webkit-overflow-scrolling: touch;
+    
+    /* 其他滚动条隐藏样式保持不变 */
+    &::-webkit-scrollbar {
+      width: 0 !important;
+      display: none !important;
+      background: transparent !important;
+    }
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+    scrollbar-color: transparent transparent !important;
+    
     .section-title {
       font-size: 16px;
       font-weight: 500;
@@ -551,13 +705,13 @@ const searchBtnStyle = computed(() => {
 
     .product-item {
       display: flex;
-      margin-bottom: 20px;
+      margin-bottom: 16px; /* 减小底部间距 */
 
       .product-image {
-        width: 120px;
-        height: 120px;
-        border-radius: 8px;
-        margin-right: 12px;
+        width: 90px; /* 减小图片尺寸 */
+        height: 90px; /* 减小图片尺寸 */
+        border-radius: 6px; /* 略微减小圆角 */
+        margin-right: 10px; /* 减小右侧间距 */
         background: #f5f5f5;
       }
 
@@ -567,28 +721,29 @@ const searchBtnStyle = computed(() => {
         flex-direction: column;
 
         .product-name {
-          font-size: 16px;
+          font-size: 14px; /* 减小名称字体 */
           font-weight: 500;
-          margin-bottom: 4px;
+          margin-bottom: 2px; /* 减小底部间距 */
         }
 
         .product-desc {
-          font-size: 12px;
+          font-size: 11px; /* 减小描述字体 */
           color: #999;
-          margin-bottom: 8px;
+          margin-bottom: 6px; /* 减小底部间距 */
+          line-height: 1.3; /* 减小行高 */
         }
 
         .tags {
           display: flex;
-          gap: 8px;
-          margin-bottom: 8px;
+          gap: 6px; /* 减小标签间距 */
+          margin-bottom: 6px; /* 减小底部间距 */
 
           .tag {
-            font-size: 10px;
+            font-size: 9px; /* 减小标签字体 */
             color: #999;
             background: #f7f7f7;
-            padding: 2px 6px;
-            border-radius: 4px;
+            padding: 1px 4px; /* 减小内部间距 */
+            border-radius: 3px; /* 减小圆角 */
           }
         }
 
@@ -600,23 +755,23 @@ const searchBtnStyle = computed(() => {
 
           .price {
             .symbol {
-              font-size: 12px;
+              font-size: 11px; /* 减小价格符号 */
               color: #333;
             }
 
             .number {
-              font-size: 20px;
+              font-size: 18px; /* 减小价格数字 */
               font-weight: 500;
               color: #333;
             }
           }
 
           .select-btn {
-            padding: 6px 16px;
+            padding: 4px 12px; /* 减小按钮内部间距 */
             background: #1296db;
             color: #fff;
-            border-radius: 20px;
-            font-size: 13px;
+            border-radius: 16px; /* 减小圆角 */
+            font-size: 12px; /* 减小按钮字体 */
           }
         }
       }
@@ -644,30 +799,50 @@ const searchBtnStyle = computed(() => {
     gap: 12px;
     padding: 0 16px;
     min-width: 120px; // 设置最小宽度
+    position: relative; // 添加相对定位
+    padding-left: 70px; // 为购物车图标腾出更多空间
 
     .cart-icon {
-      position: relative;
+      position: absolute;
+      left: 16px; // 调整位置
+      top: -24px; // 进一步向上偏移，使其更加浮在容器上方
+      width: 48px; // 尺寸保持不变
+      height: 48px; 
+      background: #fff; // 白色背景
+      border-radius: 50%; // 圆形
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15); // 阴影效果
+      border: 1px solid #f0f0f0; // 添加边框
+      z-index: 100; // 确保在最上层
       
       image {
-        width: 24px;
-        height: 24px;
+        width: 26px;
+        height: 26px;
       }
 
       .badge {
         position: absolute;
-        top: -8px;
-        right: -8px;
+        top: -5px;
+        right: -5px;
         background: #ff5339;
         color: #fff;
         font-size: 12px;
-        padding: 2px 6px;
-        border-radius: 8px;
+        min-width: 18px;
+        height: 18px;
+        line-height: 18px;
+        text-align: center;
+        border-radius: 10px;
+        padding: 0 4px;
+        z-index: 101; // 确保徽章在图标上方
       }
     }
 
     .total {
       font-size: 20px;
       font-weight: 500;
+      margin-left: 12px; // 向右挪动价格
     }
   }
 
@@ -689,14 +864,210 @@ const searchBtnStyle = computed(() => {
   padding-top: env(safe-area-inset-top);
 }
 
-// 修改滚动条样式的位置和实现
-.category-list,
-.product-list {
-  &::-webkit-scrollbar {
-    display: none;
+.cart-panel-container {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0);
+  z-index: 999;
+  visibility: hidden;
+  transition: all 0.3s ease;
+
+  &.visible {
+    visibility: visible;
+    background: rgba(0, 0, 0, 0.5);
+
+    .cart-panel {
+      transform: translateY(0);
+    }
   }
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  overflow: -moz-scrollbars-none;
+
+  .cart-panel {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #fff;
+    border-radius: 20px 20px 0 0;
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+    padding-bottom: calc(50px + constant(safe-area-inset-bottom));
+    padding-bottom: calc(50px + env(safe-area-inset-bottom));
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px;
+      border-bottom: 1px solid #f5f5f5;
+
+      .select-all {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        .checkbox {
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          border: 1px solid #ddd;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+
+          &.checked {
+            background: #1296db;
+            border-color: #1296db;
+          }
+
+          .check-icon {
+            color: #fff;
+            font-size: 12px;
+            font-weight: bold;
+          }
+        }
+
+        text {
+          font-size: 14px;
+          color: #333;
+        }
+      }
+
+      .clear-cart {
+        font-size: 14px;
+        color: #1296db;
+        cursor: pointer;
+      }
+    }
+
+    .cart-items {
+      max-height: 60vh;
+      padding: 16px;
+      padding-right: 16px; // 确保右侧padding不会导致内容溢出
+      box-sizing: border-box; // 添加盒模型设置
+
+      .cart-item {
+        display: flex;
+        margin-bottom: 16px;
+        width: 100%; // 确保宽度不超出容器
+
+        .product-image {
+          width: 80px;
+          height: 80px;
+          border-radius: 8px;
+          margin-right: 12px;
+          background: #f5f5f5;
+        }
+
+        .product-info {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          min-width: 0; // 防止flex子元素溢出
+
+          .product-name {
+            font-size: 16px;
+            color: #333;
+            font-weight: 500;
+            margin-bottom: 4px;
+          }
+
+          .product-desc {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 8px;
+          }
+
+          .price-quantity {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%; // 确保宽度填满容器
+
+            .price {
+              font-size: 18px;
+              color: #333;
+              font-weight: bold;
+            }
+
+            .quantity-control {
+              display: flex;
+              align-items: center;
+              border: 1px solid #eee;
+              border-radius: 4px;
+              overflow: hidden;
+              margin-left: 8px; // 与价格保持一定距离
+              flex-shrink: 0; // 防止被压缩
+
+              .minus, .plus {
+                width: 28px;
+                height: 28px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 14px;
+                color: #333;
+                background: #f7f7f7;
+              }
+
+              .quantity {
+                width: 40px;
+                height: 28px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 14px;
+                color: #333;
+                border-left: 1px solid #eee;
+                border-right: 1px solid #eee;
+                background: #fff; // 添加白色背景
+              }
+            }
+          }
+        }
+      }
+    }
+
+    .panel-footer {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0;  // 移除内边距
+      background: #fff;
+      border-top: 1px solid #f5f5f5;
+
+      .total-price {
+        flex: 1; // 让总价占据剩余空间
+        padding-left: 16px; // 单独设置左边距
+        font-size: 14px;
+        color: #333;
+
+        .price {
+          font-size: 20px;
+          font-weight: bold;
+          color: #333;
+        }
+      }
+
+      .checkout-btn {
+        height: 50px;
+        line-height: 50px;
+        padding: 0 32px;
+        background: #1296db;
+        color: #fff;
+        font-size: 14px;
+        text-align: center;
+        min-width: 100px;
+        border-radius: 0;
+      }
+    }
+  }
 }
 </style>

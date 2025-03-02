@@ -42,7 +42,7 @@ const coupons = ref([
           <span class="username">Hello!</span> <br>
           <span class="remind">登录享受更多精彩服务</span>
         </div>
-        <div class="btn" @click="handleLogin">注册/登录</div>
+        <div class="btn" @click="handleLogin">登录/注册</div>
       </div>
       
       <!-- 优惠券模块 -->
