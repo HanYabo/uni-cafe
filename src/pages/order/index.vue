@@ -21,7 +21,8 @@ const products = ref([
     desc: '大师监制高定系列，茶中别有韵，香极不知寒',
     price: 23,
     image: '/static/order/cart.png',
-    tags: ['支持配送', '含乳制品']
+    tags: ['支持配送', '含乳制品'],
+    description: '采用优质茶叶冷萃而成，口感清新爽口，茶香四溢。加入牛乳后，口感更加丝滑顺畅，回味悠长。适合所有喜爱高品质茶饮的人士。'
   },
   {
     id: 2,
@@ -29,7 +30,8 @@ const products = ref([
     desc: '大师监制高定系列，茶中别有韵，香极不知寒',
     price: 23,
     image: '/static/order/cart.png',
-    tags: ['支持配送', '含乳制品']
+    tags: ['支持配送', '含乳制品'],
+    description: '采用优质茶叶冷萃而成，口感清新爽口，茶香四溢。加入牛乳后，口感更加丝滑顺畅，回味悠长。适合所有喜爱高品质茶饮的人士。'
   },
   {
     id: 3,
@@ -37,7 +39,8 @@ const products = ref([
     desc: '大师监制高定系列，茶中别有韵，香极不知寒',
     price: 23,
     image: '/static/order/cart.png',
-    tags: ['支持配送', '含乳制品']
+    tags: ['支持配送', '含乳制品'],
+    description: '采用优质茶叶冷萃而成，口感清新爽口，茶香四溢。加入牛乳后，口感更加丝滑顺畅，回味悠长。适合所有喜爱高品质茶饮的人士。'
   },
   {
     id: 4,
@@ -45,7 +48,8 @@ const products = ref([
     desc: '大师监制高定系列，茶中别有韵，香极不知寒',
     price: 23,
     image: '/static/order/cart.png',
-    tags: ['支持配送', '含乳制品']
+    tags: ['支持配送', '含乳制品'],
+    description: '采用优质茶叶冷萃而成，口感清新爽口，茶香四溢。加入牛乳后，口感更加丝滑顺畅，回味悠长。适合所有喜爱高品质茶饮的人士。'
   },
   {
     id: 5,
@@ -53,7 +57,8 @@ const products = ref([
     desc: '大师监制高定系列，茶中别有韵，香极不知寒',
     price: 23,
     image: '/static/order/cart.png',
-    tags: ['支持配送', '含乳制品']
+    tags: ['支持配送', '含乳制品'],
+    description: '采用优质茶叶冷萃而成，口感清新爽口，茶香四溢。加入牛乳后，口感更加丝滑顺畅，回味悠长。适合所有喜爱高品质茶饮的人士。'
   }
 ])
 
@@ -74,6 +79,35 @@ const isCartPanelVisible = ref(false);
 
 // 添加全选状态
 const allSelected = ref(true);
+
+// 添加商品详情面板显示状态控制
+const isProductDetailVisible = ref(false);
+const currentProduct = ref(null);
+
+// 添加商品规格选择相关数据
+const cupSizes = ref([
+  { id: 1, name: '中杯', price: 0, selected: true },
+  { id: 2, name: '大杯', price: 3, selected: false }
+]);
+
+const temperatures = ref([
+  { id: 1, name: '冰', selected: true },
+  { id: 2, name: '热', selected: false }
+]);
+
+const sugarLevels = ref([
+  { id: 1, name: '标准甜', selected: true },
+  { id: 2, name: '少甜', selected: false },
+  { id: 3, name: '少少甜', selected: false },
+  { id: 4, name: '微甜', selected: false },
+  { id: 5, name: '不另外加糖', selected: false }
+]);
+
+// 添加商品描述展开状态控制
+const isDescriptionExpanded = ref(false);
+
+// 添加商品数量控制
+const productQuantity = ref(1);
 
 onMounted(() => {
   try {
@@ -187,6 +221,13 @@ const searchBtnStyle = computed(() => {
 
 // 切换购物袋面板显示状态
 const toggleCartPanel = () => {
+  if(cartItems.value.length === 0) {
+    uni.showToast({
+      title: '购物袋为空',
+      icon: 'none'
+    })
+    return
+  }
   isCartPanelVisible.value = !isCartPanelVisible.value;
 };
 
@@ -195,7 +236,7 @@ const closeCartPanel = () => {
   isCartPanelVisible.value = false;
 };
 
-// 模拟购物袋数据
+// 修改购物袋数据结构，添加选中状态
 const cartItems = ref([
   {
     id: 1,
@@ -204,14 +245,34 @@ const cartItems = ref([
     price: 96,
     quantity: 1,
     image: '/static/order/cart.png',
-    checked: true
+    selected: true // 修改为selected属性
   }
 ]);
 
-// 计算总价
+// 计算总价函数，只计算选中的商品
 const totalPrice = computed(() => {
-  return cartItems.value.reduce((total, item) => total + item.price * item.quantity, 0);
+  return cartItems.value.reduce((total, item) => total + (item.selected ? item.price * item.quantity : 0), 0);
 });
+
+// 修改全选状态检测函数，确保对应使用selected属性
+const isAllSelected = computed(() => {
+  return cartItems.value.length > 0 && cartItems.value.every(item => item.selected);
+});
+
+// 切换商品选中状态
+const toggleItemSelected = (item) => {
+  item.selected = !item.selected;
+  // 更新全选状态
+  allSelected.value = isAllSelected.value;
+};
+
+// 切换全选状态
+const toggleSelectAll = () => {
+  allSelected.value = !allSelected.value;
+  cartItems.value.forEach(item => {
+    item.selected = allSelected.value;
+  });
+};
 
 // 修改商品数量
 const changeQuantity = (item, change) => {
@@ -220,18 +281,113 @@ const changeQuantity = (item, change) => {
   item.quantity = newQuantity;
 };
 
-// 切换全选状态
-const toggleSelectAll = () => {
-  allSelected.value = !allSelected.value;
-  cartItems.value.forEach(item => {
-    item.checked = allSelected.value;
-  });
-};
-
 // 清空购物袋
 const clearCart = () => {
   cartItems.value = [];
   closeCartPanel();
+};
+
+// 开启商品详情面板
+const openProductDetail = (product) => {
+  currentProduct.value = product;
+  isProductDetailVisible.value = true;
+};
+
+// 关闭商品详情面板
+const closeProductDetail = () => {
+  isProductDetailVisible.value = false;
+};
+
+// 选择规格
+const selectOption = (options, optionId) => {
+  options.forEach(option => {
+    option.selected = option.id === optionId;
+  });
+};
+
+// 计算选中规格的价格
+const selectedPrice = computed(() => {
+  if (!currentProduct.value) return 0;
+  
+  const basePrice = currentProduct.value.price;
+  const sizePrice = cupSizes.value.find(size => size.selected)?.price || 0;
+  
+  return basePrice + sizePrice;
+});
+
+// 修改商品数量
+const changeProductQuantity = (change) => {
+  const newQuantity = productQuantity.value + change;
+  if (newQuantity < 1) return;
+  productQuantity.value = newQuantity;
+};
+
+// 计算已选规格文本
+const selectedSpecsText = computed(() => {
+  if (!currentProduct.value) return '';
+  
+  const specs = [];
+  const selectedSize = cupSizes.value.find(size => size.selected);
+  const selectedTemp = temperatures.value.find(temp => temp.selected);
+  const selectedSugar = sugarLevels.value.find(sugar => sugar.selected);
+  
+  if (selectedSize) specs.push(selectedSize.name);
+  if (selectedTemp) specs.push(selectedTemp.name);
+  if (selectedSugar) specs.push(selectedSugar.name);
+  
+  return specs.join('，');
+});
+
+// 修改添加到购物车方法，包含数量
+const addToCart = () => {
+  if (!currentProduct.value) return;
+  
+  const newItem = {
+    id: Date.now(),
+    name: currentProduct.value.name,
+    desc: selectedSpecsText.value,
+    price: selectedPrice.value,
+    quantity: productQuantity.value,
+    image: currentProduct.value.image,
+    selected: true
+  };
+  
+  cartItems.value.push(newItem);
+  closeProductDetail();
+  productQuantity.value = 1; // 重置数量
+};
+
+// 修改立即购买方法
+const buyNow = () => {
+  if (!currentProduct.value) return;
+  
+  // 构造订单数据
+  const orderData = {
+    product: {
+      id: currentProduct.value.id,
+      name: currentProduct.value.name,
+      specs: selectedSpecsText.value,
+      price: selectedPrice.value,
+      quantity: productQuantity.value,
+      image: currentProduct.value.image
+    }
+  };
+  
+  // 将订单数据存储到本地
+  uni.setStorageSync('orderData', orderData);
+  
+  // 关闭详情面板
+  closeProductDetail();
+  
+  // 跳转到确认订单页面
+  uni.navigateTo({
+    url: '/pages/order/confirm'
+  });
+};
+
+// 切换商品描述展开状态
+const toggleDescription = () => {
+  isDescriptionExpanded.value = !isDescriptionExpanded.value;
 };
 </script>
 
@@ -311,25 +467,25 @@ const clearCart = () => {
           :show-scrollbar="false"
           enhanced
         >
-          <view class="section-title">当季限定</view>
-          <view class="product-item" v-for="product in products" :key="product.id">
-            <image :src="product.image" class="product-image" mode="aspectFill" />
-            <view class="product-info">
-              <text class="product-name">{{ product.name }}</text>
-              <text class="product-desc">{{ product.desc }}</text>
-              <view class="tags">
-                <text v-for="(tag, index) in product.tags" :key="index" class="tag">{{ tag }}</text>
+        <view class="section-title">当季限定</view>
+          <view class="product-item" v-for="product in products" :key="product.id" @tap="openProductDetail(product)">
+          <image :src="product.image" class="product-image" mode="aspectFill" />
+          <view class="product-info">
+            <text class="product-name">{{ product.name }}</text>
+            <text class="product-desc">{{ product.desc }}</text>
+            <view class="tags">
+              <text v-for="(tag, index) in product.tags" :key="index" class="tag">{{ tag }}</text>
+            </view>
+            <view class="product-bottom">
+              <view class="price">
+                <text class="symbol">¥</text>
+                <text class="number">{{ product.price }}</text>
               </view>
-              <view class="product-bottom">
-                <view class="price">
-                  <text class="symbol">¥</text>
-                  <text class="number">{{ product.price }}</text>
-                </view>
-                <view class="select-btn">选规格</view>
-              </view>
+                <view class="select-btn" @tap.stop="openProductDetail(product)">选规格</view>
             </view>
           </view>
-        </scroll-view>
+        </view>
+      </scroll-view>
         <!-- 添加遮罩层覆盖滚动条 -->
         <view class="scrollbar-mask"></view>
       </view>
@@ -369,6 +525,12 @@ const clearCart = () => {
         
         <scroll-view scroll-y class="cart-items">
           <view class="cart-item" v-for="item in cartItems" :key="item.id">
+            <!-- 添加商品勾选框 -->
+            <view class="item-checkbox" @tap="toggleItemSelected(item)">
+              <view class="checkbox" :class="{ checked: item.selected }">
+                <text class="check-icon" v-if="item.selected">✓</text>
+              </view>
+            </view>
             <image class="product-image" :src="item.image" mode="aspectFill" />
             <view class="product-info">
               <text class="product-name">{{ item.name }}</text>
@@ -391,6 +553,109 @@ const clearCart = () => {
             <text class="price">¥{{ totalPrice }}</text>
           </view>
           <view class="checkout-btn">结算</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 商品详情面板 -->
+    <view class="product-detail-container" :class="{ visible: isProductDetailVisible }" @tap="closeProductDetail">
+      <view class="product-detail" @tap.stop>
+        <view class="detail-header">
+          <view class="product-basic">
+            <image :src="currentProduct?.image" class="product-image" mode="aspectFill" v-if="currentProduct" />
+            <view class="info">
+              <text class="name">{{ currentProduct?.name }}</text>
+            </view>
+          </view>
+          <view class="close-btn" @tap="closeProductDetail">×</view>
+        </view>
+        
+        <scroll-view scroll-y class="detail-content">
+          <!-- 修改商品描述部分 -->
+          <view class="product-description" v-if="currentProduct">
+            <text class="description-text" :class="{ expanded: isDescriptionExpanded }">
+              {{ currentProduct.description }}
+            </text>
+            <text class="toggle-btn" :class="{ expanded: isDescriptionExpanded }" @tap="toggleDescription">
+              {{ isDescriptionExpanded ? '收起' : '展开' }}
+            </text>
+          </view>
+          
+          <!-- 杯型选择 -->
+          <view class="spec-section">
+            <view class="section-title">杯型</view>
+            <view class="options-list">
+              <view 
+                v-for="size in cupSizes" 
+                :key="size.id" 
+                class="option-item" 
+                :class="{ active: size.selected }"
+                @tap="selectOption(cupSizes, size.id)"
+              >
+                <text>{{ size.name }}</text>
+                <text v-if="size.price > 0" class="extra-price">+{{ size.price }}元</text>
+              </view>
+            </view>
+          </view>
+          
+          <!-- 温度选择 -->
+          <view class="spec-section">
+            <view class="section-title">温度</view>
+            <view class="options-list">
+              <view 
+                v-for="temp in temperatures" 
+                :key="temp.id" 
+                class="option-item" 
+                :class="{ active: temp.selected }"
+                @tap="selectOption(temperatures, temp.id)"
+              >
+                {{ temp.name }}
+              </view>
+            </view>
+          </view>
+          
+          <!-- 糖度选择 -->
+          <view class="spec-section">
+            <view class="section-title">糖度</view>
+            <view class="options-list">
+              <view 
+                v-for="sugar in sugarLevels" 
+                :key="sugar.id" 
+                class="option-item" 
+                :class="{ active: sugar.selected }"
+                @tap="selectOption(sugarLevels, sugar.id)"
+              >
+                {{ sugar.name }}
+              </view>
+            </view>
+          </view>
+        </scroll-view>
+        
+        <view class="detail-footer">
+          <view class="selected-specs">
+            <view class="specs-content">
+              <view class="selected-items">
+                <view class="price-wrapper">
+                  <text class="symbol">¥</text>
+                  <text class="price">{{ selectedPrice }}</text>
+                </view>
+                <view class="quantity-control">
+                  <text 
+                    class="control-btn" 
+                    :class="{ disabled: productQuantity <= 1 }"
+                    @tap="changeProductQuantity(-1)"
+                  >-</text>
+                  <text class="quantity">{{ productQuantity }}</text>
+                  <text class="control-btn" @tap="changeProductQuantity(1)">+</text>
+                </view>
+              </view>
+              <text class="selected-specs-text">{{ selectedSpecsText }}</text>
+            </view>
+          </view>
+          <view class="footer-btns">
+            <view class="add-to-cart-btn" @tap="addToCart">加入购物车</view>
+            <view class="buy-now-btn" @tap="buyNow">立即购买</view>
+          </view>
         </view>
       </view>
     </view>
@@ -691,7 +956,7 @@ const clearCart = () => {
     scrollbar-width: none !important;
     -ms-overflow-style: none !important;
     scrollbar-color: transparent transparent !important;
-    
+
     .section-title {
       font-size: 16px;
       font-weight: 500;
@@ -953,6 +1218,33 @@ const clearCart = () => {
         margin-bottom: 16px;
         width: 100%; // 确保宽度不超出容器
 
+        .item-checkbox {
+          margin-right: 10px;
+          display: flex;
+          align-items: center;
+          
+          .checkbox {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            &.checked {
+              background: #1296db;
+              border-color: #1296db;
+            }
+
+            .check-icon {
+              color: #fff;
+              font-size: 12px;
+              font-weight: bold;
+            }
+          }
+        }
+
         .product-image {
           width: 80px;
           height: 80px;
@@ -1066,6 +1358,335 @@ const clearCart = () => {
         text-align: center;
         min-width: 100px;
         border-radius: 0;
+      }
+    }
+  }
+}
+
+.product-detail-container {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0);
+  z-index: 999;
+  visibility: hidden;
+  transition: all 0.3s ease;
+
+  &.visible {
+    visibility: visible;
+    background: rgba(0, 0, 0, 0.5);
+
+    .product-detail {
+      transform: translateY(0);
+    }
+  }
+
+  .product-detail {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #fff;
+    border-radius: 20px 20px 0 0;
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+    max-height: 96vh; /* 增加最大高度以显示更多内容 */
+    display: flex;
+    flex-direction: column;
+    
+    .detail-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 16px;
+      border-bottom: 1px solid #f5f5f5;
+      
+      .product-basic {
+        display: flex;
+        align-items: center;
+        
+        .product-image {
+          width: 70px;
+          height: 70px;
+          border-radius: 8px;
+          margin-right: 16px;
+          background: #f5f5f5;
+        }
+        
+        .info {
+          display: flex;
+          flex-direction: column;
+          
+          .name {
+            font-size: 18px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 8px;
+          }
+          
+          .price {
+            display: none;
+          }
+        }
+      }
+      
+      .close-btn {
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        color: #999;
+        background: #f7f7f7;
+        border-radius: 50%;
+      }
+    }
+    
+    .detail-content {
+      flex: 1;
+      padding: 0;
+      overflow-y: auto;
+      padding-bottom: 140px; /* 添加底部内边距，确保内容不被底部栏遮挡 */
+      
+      /* 修改商品描述样式 */
+      .product-description {
+        margin: 16px 16px 24px 16px; /* 增加底部间距 */
+        padding: 16px;
+        background: #f8f8f8;
+        border-radius: 12px;
+        position: relative;
+        width: auto;
+        box-sizing: border-box;
+        
+        .description-text {
+          font-size: 14px;
+          color: #666;
+          line-height: 1.6;
+          display: -webkit-box;
+          -webkit-box-orient: vertical;
+          -webkit-line-clamp: 2;
+          overflow: hidden;
+          transition: all 0.3s ease;
+          padding-right: 40px; /* 为展开按钮预留空间 */
+          
+          &.expanded {
+            -webkit-line-clamp: unset;
+          }
+        }
+        
+        .toggle-btn {
+          position: absolute;
+          right: 16px;
+          top: 50%;
+          transform: translateY(-50%);
+          font-size: 12px;
+          color: #1296db;
+          padding: 4px 8px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          white-space: nowrap;
+          
+          &::after {
+            content: '';
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border: solid #1296db;
+            border-width: 0 1px 1px 0;
+            transform: rotate(45deg);
+            margin-left: 4px;
+            transition: transform 0.3s ease;
+            position: relative;
+            top: -1px;
+          }
+          
+          &.expanded::after {
+            transform: rotate(-135deg);
+            top: 1px;
+          }
+        }
+      }
+      
+      .spec-section {
+        margin: 0 16px 16px 16px; /* 减小各规格选项之间的间距 */
+        
+        .section-title {
+          font-size: 16px;
+          font-weight: 500;
+          color: #333;
+          margin-bottom: 10px; /* 减小标题与选项的间距 */
+        }
+        
+        .options-list {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+          
+          .option-item {
+            width: 100px; /* 增加默认按钮宽度 */
+            height: 36px;
+            padding: 0 8px; /* 继续减小内边距 */
+            border-radius: 8px;
+            background: #f7f7f7;
+            color: #333;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            flex-grow: 0;
+            text-align: center;
+            white-space: nowrap; /* 防止文字换行 */
+            overflow: hidden; /* 防止文字溢出 */
+            text-overflow: ellipsis; /* 文字溢出时显示省略号 */
+            
+            &.active {
+              background: #e0f0fa;
+              color: #1296db;
+              border: 1px solid #1296db;
+            }
+            
+            .extra-price {
+              font-size: 12px;
+              color: #ff5339;
+              margin-left: 4px;
+            }
+          }
+        }
+      }
+    }
+    
+    .detail-footer {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 12px 16px; /* 增加上下内边距 */
+      background: #fff;
+      border-top: 1px solid #f5f5f5;
+      padding-bottom: calc(12px + env(safe-area-inset-bottom));
+      
+      .selected-specs {
+        margin-bottom: 16px; /* 增加底部间距 */
+        padding: 0 4px;
+      }
+      
+      .specs-content {
+        display: flex;
+        flex-direction: column; /* 修改为纵向排列 */
+        
+        .selected-items {
+          display: flex;
+          align-items: center;
+          justify-content: space-between; /* 价格与数量控制分两端对齐 */
+          margin-bottom: 10px; /* 添加底部间距 */
+          
+          .price-wrapper {
+            display: flex;
+            align-items: baseline; /* 对齐文字的基线 */
+            margin-right: 12px; /* 添加右侧间距 */
+            
+            .symbol {
+              font-size: 16px;
+              color: #ff5339;
+            }
+            
+            .price {
+              font-size: 24px;
+              font-weight: bold;
+              color: #ff5339;
+              margin-left: 1px; /* 最小间距 */
+            }
+          }
+          
+          &::before {
+            content: none; /* 移除伪元素 */
+          }
+        }
+        
+        .selected-specs-text {
+          font-size: 14px;
+          color: #666;
+          margin-top: 8px;
+          line-height: 1.4;
+        }
+        
+        .quantity-control {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          
+          .control-btn {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #ddd;
+            border-radius: 50%;
+            color: #1296db;
+            font-size: 18px;
+            background: #f0f7fc; /* 更改为淡蓝色背景 */
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* 添加轻微阴影 */
+            
+            &:not(.disabled):active {
+              background: #e0f0fa;
+              transform: scale(0.95); /* 添加按下效果 */
+            }
+            
+            &.disabled {
+              border-color: #eee;
+              color: #ccc;
+              background: #f8f8f8;
+              box-shadow: none;
+            }
+          }
+          
+          .quantity {
+            font-size: 16px;
+            color: #333;
+            min-width: 40px;
+            text-align: center;
+            font-weight: 500;
+          }
+        }
+      }
+      
+      .footer-btns {
+        display: flex;
+        gap: 12px;
+        margin-top: 6px; /* 添加顶部间距 */
+        
+        .add-to-cart-btn {
+          flex: 1;
+          height: 44px;
+          line-height: 44px;
+          text-align: center;
+          background: #fff;
+          color: #f0ad4e;
+          font-size: 16px;
+          border-radius: 22px;
+          font-weight: 500;
+          border: 1px solid #f0ad4e;
+        }
+        
+        .buy-now-btn {
+          flex: 1;
+          height: 44px;
+          line-height: 44px;
+          text-align: center;
+          background: #1296db;
+          color: #fff;
+          font-size: 16px;
+          border-radius: 22px;
+          font-weight: 500;
+        }
       }
     }
   }

@@ -26,6 +26,14 @@
 			}
 		},
 		{
+			"path": "pages/order/confirm",
+			"style": {
+				"navigationBarTitleText": "确认订单",
+				"navigationBarBackgroundColor": "#ffffff",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
 			"path": "pages/record/index",
 			"style": {
 				"navigationBarTitleText": "订单"

@@ -37,7 +37,7 @@ const coupons = ref([
   <div class="layout" :style="{ paddingTop: statusBarHeight + 'px' }">
     <div class="safe-area">
       <div class="portfolio">
-        <img src="/static/index/qrcode.svg" alt="头像" class="avatar" />
+        <img src="/static/my/avatar.png" alt="头像" class="avatar" />
         <div class="text">
           <span class="username">Hello!</span> <br>
           <span class="remind">登录享受更多精彩服务</span>

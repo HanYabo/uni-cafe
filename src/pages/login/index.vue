@@ -81,6 +81,22 @@ const handleRegister = () => {
 const handleWechatLogin = () => {
   // TODO: 实现微信登录逻辑
   console.log('微信登录')
+  uni.login({
+    provider: 'weixin',
+    success: (res) => {
+      console.log('微信登录成功', res)
+      // 调用微信接口获取用户信息
+      uni.getUserInfo({
+        provider: 'weixin',
+        success: (res) => {
+          console.log('微信用户信息', res)
+        }
+      })
+    },
+    fail: (err) => {
+      console.log('微信登录失败', err)
+    }
+  })
 }
 </script>
 

@@ -1,6 +1,8 @@
 <script setup>
 import { onMounted, reactive, ref } from "vue";
 
+const userInfo = reactive(null)
+
 const statusBarHeight = ref(0)
 
 onMounted(() => {
@@ -14,7 +16,13 @@ const handleLogin = () => {
   })
 }
 
-const userInfo = reactive(null)
+// 跳转到点单页面
+const goToBuy = () => {
+  uni.switchTab({
+    url: '/pages/order/index'
+  })
+}
+
 </script>
 
 <template>
@@ -22,7 +30,7 @@ const userInfo = reactive(null)
     <view class="portfolio" v-if="userInfo">
       <img src="/static/index/qrcode.svg" alt="头像" class="avatar" />
       <view class="text">
-        <text class="username">张三</text>
+        <text class="username">{{ userInfo.name }}</text>
         <text class="remind">有1张优惠券未使用，立即查看></text>
       </view>
       <view class="line1"></view>
@@ -33,19 +41,19 @@ const userInfo = reactive(null)
     </view>
     <view v-else class="user-mode">
       <text class="slogan">Hi，欢迎来到uni-cafe</text>
-      <view class="login-btn" @click="handleLogin">登录/注册</view>
+      <view class="login-btn" @tap="handleLogin">登录/注册</view>
     </view>
 
     <view class="panel">
-      <view class="pl">
+      <view class="pl" @tap="goToBuy">
         <view class="icon-wrapper">
-          <image src="/static/index/store.png" class="picture" />
+          <image src="/static/index/coffee1.png" class="picture" />
         </view>
         <text class="l1">门店自取</text>
         <text class="l2">下单免排队</text>
       </view>
       <view class="line2"></view>
-      <view class="pr">
+      <view class="pr" @tap="goToBuy">
         <view class="icon-wrapper">
           <image src="/static/index/delivery.png" class="picture" />
         </view>
@@ -147,7 +155,7 @@ const userInfo = reactive(null)
     width: 2rpx;
     height: 60rpx;
     background: rgba(0, 0, 0, 0.1);
-    margin: 0 30rpx;
+    margin-left: 60rpx;
     z-index: 1;
   }
 
@@ -155,7 +163,7 @@ const userInfo = reactive(null)
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-right: 30rpx;
+    margin-left: 75rpx;
     z-index: 1;
     
     .qr {
