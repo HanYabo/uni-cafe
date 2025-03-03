@@ -1,13 +1,28 @@
 <script setup>
-import { onMounted, reactive, ref } from "vue";
+import { onShow } from '@dcloudio/uni-app'
+import { onMounted, ref } from "vue"
 
-const userInfo = reactive(null)
-
+const userInfo = ref(null)
 const statusBarHeight = ref(0)
+const showMemberCode = ref(false)
+
+// 获取用户信息的方法
+const getUserInfo = () => {
+  const storedUserInfo = wx.getStorageSync('userInfo')
+  if (storedUserInfo) {
+    userInfo.value = storedUserInfo
+  }
+}
 
 onMounted(() => {
   const systemInfo = uni.getSystemInfoSync()
   statusBarHeight.value = systemInfo.statusBarHeight || 0
+  getUserInfo()
+})
+
+// 每次页面显示时都重新获取用户信息
+onShow(() => {
+  getUserInfo()
 })
 
 const handleLogin = () => {
@@ -23,19 +38,27 @@ const goToBuy = () => {
   })
 }
 
+const handleShowMemberCode = () => {
+  showMemberCode.value = true
+}
+
+const handleCloseMemberCode = () => {
+  showMemberCode.value = false
+}
+
 </script>
 
 <template>
   <view class="layout" :style="{ paddingTop: statusBarHeight + 'px' }">
     <view class="portfolio" v-if="userInfo">
-      <img src="/static/index/qrcode.svg" alt="头像" class="avatar" />
+      <image :src="userInfo.avatarUrl || '/static/index/qrcode.svg'" class="avatar" />
       <view class="text">
-        <text class="username">{{ userInfo.name }}</text>
+        <text class="username">{{ userInfo.nickName || '未知用户' }}</text>
         <text class="remind">有1张优惠券未使用，立即查看></text>
       </view>
       <view class="line1"></view>
-      <view class="code">
-        <img src="/static/index/qrcode.svg" class="qr" />
+      <view class="code" @tap="handleShowMemberCode">
+        <image src="/static/index/qrcode.svg" class="qr" />
         <text class="member">会员码</text>
       </view>
     </view>
@@ -87,6 +110,26 @@ const goToBuy = () => {
         <text class="t2">送礼更有面子</text>
       </view>
     </view>
+
+    <!-- 会员码弹出层 -->
+    <view class="member-popup" v-if="showMemberCode" @tap="handleCloseMemberCode">
+      <view class="member-card" @tap.stop>
+        <view class="close-btn" @tap="handleCloseMemberCode">
+          <text class="close-icon">×</text>
+        </view>
+        <view class="member-info">
+          <image :src="userInfo?.avatarUrl" class="member-avatar" mode="aspectFill" />
+          <text class="member-name">{{ userInfo?.nickName }}</text>
+        </view>
+        <view class="qrcode-container">
+          <image src="/static/index/qrcode.svg" class="member-qrcode" />
+          <text class="scan-text">扫码支付</text>
+        </view>
+        <view class="member-footer">
+          <text class="member-tip">出示此码可在门店内享受会员权益</text>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -110,9 +153,11 @@ const goToBuy = () => {
   height: 150rpx;
   border-radius: 16rpx;
   margin-bottom: 30rpx;
+  padding: 40rpx;
   box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
   position: relative;
   overflow: hidden;
+  box-sizing: border-box;
 
   &::before {
     content: '';
@@ -130,20 +175,23 @@ const goToBuy = () => {
     width: 80rpx;
     height: 80rpx;
     border-radius: 50%;
-    margin-left: 30rpx;
+    margin-right: 20rpx;
     z-index: 1;
   }
 
   .text {
-    margin-left: 20rpx;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
     z-index: 1;
+    
     .username {
       font-size: 32rpx;
       font-weight: 600;
       color: #333;
-      display: block;
       margin-bottom: 6rpx;
     }
+    
     .remind {
       font-size: 24rpx;
       color: #666;
@@ -155,7 +203,7 @@ const goToBuy = () => {
     width: 2rpx;
     height: 60rpx;
     background: rgba(0, 0, 0, 0.1);
-    margin-left: 60rpx;
+    margin: 0 24rpx;
     z-index: 1;
   }
 
@@ -163,7 +211,6 @@ const goToBuy = () => {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-left: 75rpx;
     z-index: 1;
     
     .qr {
@@ -355,6 +402,106 @@ const goToBuy = () => {
     height: 80rpx;
     background: rgba(0, 0, 0, 0.1);
     margin: 0 20rpx;
+  }
+}
+
+.member-popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+
+.member-card {
+  width: 600rpx;
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 40rpx;
+  position: relative;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.1);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(50rpx);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.close-btn {
+  position: absolute;
+  top: 20rpx;
+  right: 20rpx;
+  width: 60rpx;
+  height: 60rpx;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  
+  .close-icon {
+    font-size: 48rpx;
+    color: #999;
+    line-height: 1;
+  }
+}
+
+.member-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 40rpx;
+  
+  .member-avatar {
+    width: 120rpx;
+    height: 120rpx;
+    border-radius: 50%;
+    margin-bottom: 20rpx;
+    border: 4rpx solid rgba(18, 150, 219, 0.1);
+  }
+  
+  .member-name {
+    font-size: 32rpx;
+    font-weight: 600;
+    color: #333;
+  }
+}
+
+.qrcode-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40rpx 0;
+  
+  .member-qrcode {
+    width: 400rpx;
+    height: 400rpx;
+    margin-bottom: 20rpx;
+  }
+  
+  .scan-text {
+    font-size: 28rpx;
+    color: #666;
+  }
+}
+
+.member-footer {
+  text-align: center;
+  margin-top: 20rpx;
+  
+  .member-tip {
+    font-size: 24rpx;
+    color: #999;
   }
 }
 </style>

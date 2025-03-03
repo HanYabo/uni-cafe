@@ -14,6 +14,12 @@ const handleLogin = () => {
   })
 }
 
+const handleToAddress = () => {
+  uni.navigateTo({
+    url: '/pages/address/index'
+  })
+}
+
 // 优惠券数据
 const coupons = ref([
   {
@@ -34,87 +40,88 @@ const coupons = ref([
 </script>
 
 <template>
-  <div class="layout" :style="{ paddingTop: statusBarHeight + 'px' }">
-    <div class="safe-area">
-      <div class="portfolio">
-        <img src="/static/my/avatar.png" alt="头像" class="avatar" />
-        <div class="text">
-          <span class="username">Hello!</span> <br>
-          <span class="remind">登录享受更多精彩服务</span>
-        </div>
-        <div class="btn" @click="handleLogin">登录/注册</div>
-      </div>
+  <view class="layout" :style="{ paddingTop: statusBarHeight + 'px' }">
+    <view class="safe-area">
+      <!-- 头像模块 -->
+      <view class="portfolio">
+        <image src="/static/my/avatar.png" alt="头像" class="avatar" />
+        <view class="text">
+          <text class="username">Hello!</text> <br>
+          <text class="remind">登录享受更多精彩服务</text>
+        </view>
+        <view class="btn" @click="handleLogin">登录/注册</view>
+      </view>
       
       <!-- 优惠券模块 -->
-      <div class="coupon-section">
-        <div class="coupon-header">
+      <view class="coupon-section">
+        <view class="coupon-header">
           <text class="coupon-title">我的优惠券</text>
           <text class="coupon-more">查看全部 ></text>
-        </div>
-        <div class="coupon-list">
-          <div class="coupon-item" v-for="coupon in coupons" :key="coupon.id">
-            <div class="coupon-left">
-              <div class="amount-wrap">
+        </view>
+        <view class="coupon-list">
+          <view class="coupon-item" v-for="coupon in coupons" :key="coupon.id">
+            <view class="coupon-left">
+              <view class="amount-wrap">
                 <text class="symbol" v-if="coupon.type === '满减券'">¥</text>
                 <text class="amount">{{ coupon.amount }}</text>
                 <text class="unit" v-if="coupon.type === '折扣券'">折</text>
-              </div>
+              </view>
               <text class="condition">{{ coupon.condition }}</text>
-            </div>
-            <div class="coupon-right">
+            </view>
+            <view class="coupon-right">
               <text class="type">{{ coupon.type }}</text>
               <text class="date">有效期至：{{ coupon.expireDate }}</text>
-              <div class="use-btn">立即使用</div>
-            </div>
-          </div>
-        </div>
-      </div>
+              <view class="use-btn">立即使用</view>
+            </view>
+          </view>
+        </view>
+      </view>
       
-      <div class="util">
-        <div class="util-header">
+      <view class="util">
+        <view class="util-header">
           <text class="util-title">常用功能</text>
-        </div>
-        <div class="util-grid">
-          <div class="grid-item">
-            <div class="icon-wrapper">
+        </view>
+        <view class="util-grid">
+          <view class="grid-item" @tap="handleToAddress">
+            <view class="icon-wrapper">
               <image src="/static/mine/address.png" class="icon" />
-            </div>
+            </view>
             <text class="text">地址管理</text>
-          </div>
-          <div class="grid-item">
-            <div class="icon-wrapper">
+          </view>
+          <view class="grid-item">
+            <view class="icon-wrapper">
               <image src="/static/mine/invoice.png" class="icon" />
-            </div>
+            </view>
             <text class="text">发票管理</text>
-          </div>
-          <div class="grid-item">
-            <div class="icon-wrapper">
+          </view>
+          <view class="grid-item">
+            <view class="icon-wrapper">
               <image src="/static/mine/setting.png" class="icon" />
-            </div>
+            </view>
             <text class="text">设置</text>
-          </div>
-          <div class="grid-item">
-            <div class="icon-wrapper">
+          </view>
+          <view class="grid-item">
+            <view class="icon-wrapper">
               <image src="/static/mine/wechat.png" class="icon" />
-            </div>
+            </view>
             <text class="text">关注公众号</text>
-          </div>
-          <div class="grid-item">
-            <div class="icon-wrapper">
+          </view>
+          <view class="grid-item">
+            <view class="icon-wrapper">
               <image src="/static/mine/service.png" class="icon" />
-            </div>
+            </view>
             <text class="text">在线客服</text>
-          </div>
-          <div class="grid-item">
-            <div class="icon-wrapper">
+          </view>
+          <view class="grid-item">
+            <view class="icon-wrapper">
               <image src="/static/mine/terms.png" class="icon" />
-            </div>
+            </view>
             <text class="text">条款与证明</text>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
 </template>
 
 <style scoped lang="scss">

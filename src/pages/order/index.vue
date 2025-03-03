@@ -144,7 +144,7 @@ const shopInfoStyle = computed(() => {
   return {
     top: `${statusBarHeight.value + navHeight}px`,
     height: '120px',
-    paddingTop: '12px',
+    paddingTop: '0',
     paddingBottom: '12px',
     boxSizing: 'border-box'
   }
@@ -434,17 +434,19 @@ const toggleDescription = () => {
         <view class="left">
           <view class="shop-name">
             <view class="name-wrap">
-              <image src="/static/order/star.png" class="star-icon" mode="aspectFit" />
-              <text class="name">{{ shopInfo.name }}</text>
+              <image src="/static/order/star.png" class="star-icon" mode="aspectFit" v-if="deliveryType === '自取'"/>
+              <text class="name" v-if="deliveryType === '自取'">{{ shopInfo.name }}</text>
+              <text class="name" v-else>收货地址</text>
               <text class="arrow">></text>
             </view>
-            <text class="distance">距离您{{ shopInfo.distance }}</text>
+            <text class="distance" v-if="deliveryType === '自取'">距离您{{ shopInfo.distance }}</text>
+            <view class="address-info" v-else>
+              <text class="address">广州市天河区融创购物中心1层</text>
+              <text class="contact">张三 138****8888</text>
+            </view>
           </view>
           <view class="notice-wrap">
             <text class="notice" :class="{ 'expanded': isNoticeExpanded }">{{ shopInfo.notice }}</text>
-            <text class="more" @tap="isNoticeExpanded = !isNoticeExpanded">
-              {{ isNoticeExpanded ? '收起' : '展开' }}
-            </text>
           </view>
         </view>
         <view class="right">
@@ -458,6 +460,9 @@ const toggleDescription = () => {
               @tap="switchDeliveryType('外卖')"
             >外卖</text>
           </view>
+          <text class="more" @tap="isNoticeExpanded = !isNoticeExpanded">
+            {{ isNoticeExpanded ? '收起' : '展开' }}
+          </text>
         </view>
       </view>
     </view>
@@ -761,7 +766,7 @@ const toggleDescription = () => {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    padding: 0 16px;
+    padding: 12px 16px;
 
     .left {
       flex: 1;
@@ -803,7 +808,8 @@ const toggleDescription = () => {
 
       .notice-wrap {
         position: relative;
-        padding-right: 80px; // 增加右侧预留空间
+        padding-right: 0; // 移除右侧padding
+        margin-bottom: 0;
 
         .notice {
           font-size: 12px;
@@ -813,52 +819,43 @@ const toggleDescription = () => {
           -webkit-box-orient: vertical;
           -webkit-line-clamp: 1;
           overflow: hidden;
-          padding-right: 10px; // 与展开按钮保持一定间距
 
           &.expanded {
             -webkit-line-clamp: unset;
           }
         }
-
-        .more {
-          position: absolute;
-          right: 24px; // 调整到更右侧的位置
-          bottom: 0;
-          font-size: 12px;
-          color: #999;
-          background: #fff;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          white-space: nowrap;
-          padding: 0 20px 0 10px; // 调整内边距
-          
-          &::after {
-            content: '';
-            position: absolute;
-            right: 0; // 箭头紧贴文字
-            top: 50%;
-            transform: translateY(-50%) rotate(0deg);
-            width: 12px;
-            height: 12px;
-            background: url('/static/order/arrow-down.png') no-repeat center/contain;
-            transition: transform 0.3s;
-          }
-        }
       }
 
-      // 展开状态下箭头旋转
-      .notice.expanded + .more::after {
-        transform: translateY(-50%) rotate(180deg);
+      .address-info {
+        margin-top: 4px;
+        
+        .address {
+          font-size: 12px;
+          color: #333;
+          margin-bottom: 4px;
+          display: block;
+        }
+        
+        .contact {
+          font-size: 12px;
+          color: #666;
+          display: block;
+        }
       }
     }
 
     .right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+
       .delivery-switch {
         display: flex;
         background: #f5f5f5;
         border-radius: 20px;
         padding: 2px;
+        order: -1; // 添加 order 属性，确保自取/外卖按钮在上方
 
         .switch-item {
           padding: 4px 16px;
@@ -872,6 +869,31 @@ const toggleDescription = () => {
             background: #333;
             color: #fff;
           }
+        }
+      }
+
+      .more {
+        font-size: 12px;
+        color: #999;
+        padding: 2px 0;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        white-space: nowrap;
+        margin-top: 4px; // 添加顶部间距
+        
+        &::after {
+          content: '';
+          display: inline-block;
+          width: 6px;
+          height: 6px;
+          border: solid #999;
+          border-width: 0 1px 1px 0;
+          transform: rotate(45deg);
+          margin-left: 4px;
+          transition: transform 0.3s;
+          position: relative;
+          top: -1px;
         }
       }
     }

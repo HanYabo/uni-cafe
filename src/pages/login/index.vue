@@ -5,13 +5,13 @@
         <view class="login-title">欢迎回来</view>
         <view class="login-subtitle">请登录您的账号</view>
       </view>
-      
+
       <view class="input-group">
         <view class="input-wrapper">
           <text class="iconfont icon-phone input-icon"></text>
           <input 
             type="number" 
-            v-model="phone" 
+            v-model="form.mobile" 
             maxlength="11"
             placeholder="请输入手机号"
             class="input-item"
@@ -21,7 +21,7 @@
           <text class="iconfont icon-lock input-icon"></text>
           <input 
             type="password" 
-            v-model="password"
+            v-model="form.password"
             placeholder="请输入密码"
             class="input-item"
           />
@@ -29,8 +29,8 @@
       </view>
 
       <view class="btn-group">
-        <button @click="handleLogin" class="login-btn primary-btn" hover-class="button-hover">登录</button>
-        <button @click="handleWechatLogin" class="login-btn wechat-btn" hover-class="button-hover">
+        <button @tap="handleSubmit" class="login-btn primary-btn" hover-class="button-hover">登录</button>
+        <button @tap="handleWechatLogin" class="login-btn wechat-btn" hover-class="button-hover">
           <text class="iconfont icon-wechat"></text>
           微信一键登录
         </button>
@@ -38,7 +38,7 @@
 
       <view class="additional-links">
         <text class="link-text">忘记密码</text>
-        <text class="link-text" @click="handleRegister">注册账号</text>
+        <text class="link-text" @tap="handleRegister">注册账号</text>
       </view>
     </view>
 
@@ -52,50 +52,154 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { login, wechatLogin } from '@/api/user'
+import { reactive, ref } from 'vue'
 
-// 响应式状态
-const phone = ref('')
-const password = ref('')
+const activeTab = ref('login')
+const form = reactive({
+  mobile: '',
+  password: '',
+  confirmPassword: ''
+})
 
-// 登录
-const handleLogin = () => {
-  if (!phone.value || !password.value) {
-    uni.showToast({
-      title: '请输入手机号和密码',
+// 表单验证
+const validateForm = () => {
+  if (!form.mobile) {
+    wx.showToast({
+      title: '请输入手机号',
       icon: 'none'
     })
-    return
+    return false
   }
-  // TODO: 实现登录逻辑
-  console.log('登录', phone.value, password.value)
+  
+  if (!/^1[3-9]\d{9}$/.test(form.mobile)) {
+    wx.showToast({
+      title: '手机号格式不正确',
+      icon: 'none'
+    })
+    return false
+  }
+  
+  if (!form.password) {
+    wx.showToast({
+      title: '请输入密码',
+      icon: 'none'
+    })
+    return false
+  }
+  
+  return true
 }
 
-// 注册
-const handleRegister = () => {
-  uni.navigateTo({
-    url: '/pages/register/index'
-  })
-}
-
-const handleWechatLogin = () => {
-  // TODO: 实现微信登录逻辑
-  console.log('微信登录')
-  uni.login({
-    provider: 'weixin',
-    success: (res) => {
-      console.log('微信登录成功', res)
-      // 调用微信接口获取用户信息
-      uni.getUserInfo({
-        provider: 'weixin',
-        success: (res) => {
-          console.log('微信用户信息', res)
-        }
-      })
-    },
-    fail: (err) => {
-      console.log('微信登录失败', err)
+// 提交表单
+const handleSubmit = async () => {
+  if (!validateForm()) return
+  
+  try {
+    wx.showLoading({
+      title: '登录中...'
+    })
+    
+    const data = {
+      mobile: form.mobile,
+      password: form.password
     }
+    
+    const res = await login(data)
+    
+    wx.hideLoading()
+    
+    // 保存token
+    wx.setStorageSync('token', res.data.token)
+    // 跳转到首页
+    wx.switchTab({
+      url: '/pages/index/index'
+    })
+  } catch (error) {
+    wx.hideLoading()
+    wx.showToast({
+      title: error.message || '登录失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 微信登录
+const handleWechatLogin = async () => {
+  try {
+    wx.showLoading({
+      title: '登录中...'
+    })
+
+    // 1. 获取用户授权和信息
+    const { userInfo } = await wx.getUserProfile({
+      desc: '用于完善用户资料',
+      lang: 'zh_CN'
+    })
+
+    // 2. 获取登录凭证
+    const { code } = await wx.login()
+    
+    if (!code) {
+      throw new Error('微信登录失败')
+    }
+
+    // 3. 调用后端接口，发送code和用户信息
+    const res = await wechatLogin({
+      code,
+      userInfo: {
+        nickName: userInfo.nickName,
+        avatarUrl: userInfo.avatarUrl,
+        gender: userInfo.gender,
+        country: userInfo.country,
+        province: userInfo.province,
+        city: userInfo.city
+      }
+    })
+
+    // 4. 保存token和用户信息
+    const finalUserInfo = {
+      ...userInfo,
+      ...res.data.userInfo // 合并后端返回的用户信息
+    }
+    
+    wx.setStorageSync('token', res.data.token)
+    wx.setStorageSync('userInfo', finalUserInfo)
+    
+    wx.showToast({
+      title: '登录成功',
+      icon: 'success',
+      duration: 1500
+    })
+
+    // 5. 延迟跳转，让用户看到成功提示
+    setTimeout(() => {
+      wx.switchTab({
+        url: '/pages/index/index'
+      })
+    }, 1500)
+  } catch (error) {
+    wx.hideLoading()
+    console.error('微信登录失败', error)
+    
+    if (error.errMsg?.includes('getUserProfile:fail')) {
+      wx.showToast({
+        title: '需要您的授权才能继续',
+        icon: 'none'
+      })
+      return
+    }
+    
+    wx.showToast({
+      title: error.message || '微信登录失败',
+      icon: 'none'
+    })
+  }
+}
+
+const handleRegister = () => {
+  wx.navigateTo({
+    url: '/pages/register/index'
   })
 }
 </script>
@@ -103,7 +207,7 @@ const handleWechatLogin = () => {
 <style lang="scss" scoped>
 .login-container {
   min-height: 100vh;
-  background-color: $uni-bg-color;
+  background-color: #f5f5f5;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -129,14 +233,14 @@ const handleWechatLogin = () => {
 
 .login-title {
   font-size: 48rpx;
-  color: $uni-text-color;
+  color: #333;
   font-weight: bold;
   margin-bottom: 16rpx;
 }
 
 .login-subtitle {
   font-size: 28rpx;
-  color: $uni-text-color-grey;
+  color: #666;
 }
 
 .input-group {
@@ -148,20 +252,20 @@ const handleWechatLogin = () => {
   margin-bottom: 24rpx;
   display: flex;
   align-items: center;
-  background-color: $uni-bg-color-grey;
+  background-color: #f5f5f5;
   border-radius: 12rpx;
   padding: 0 30rpx;
   transition: all 0.3s ease;
 
   &:focus-within {
     background-color: #fff;
-    box-shadow: 0 0 0 2rpx $uni-color-primary;
+    box-shadow: 0 0 0 2rpx #1296db;
   }
 }
 
 .input-icon {
   font-size: 36rpx;
-  color: $uni-text-color-grey;
+  color: #999;
   margin-right: 20rpx;
 }
 
@@ -173,7 +277,7 @@ const handleWechatLogin = () => {
   box-sizing: border-box;
   
   &::placeholder {
-    color: $uni-text-color-placeholder;
+    color: #999;
   }
 }
 
@@ -197,7 +301,7 @@ const handleWechatLogin = () => {
 }
 
 .primary-btn {
-  background-color: $uni-color-primary;
+  background-color: #1296db;
   color: #fff;
   
   &.button-hover {
@@ -229,7 +333,7 @@ const handleWechatLogin = () => {
 
 .link-text {
   font-size: 26rpx;
-  color: $uni-color-primary;
+  color: #1296db;
 }
 
 .login-footer {
@@ -240,11 +344,11 @@ const handleWechatLogin = () => {
 }
 
 .footer-text {
-  color: $uni-text-color-grey;
+  color: #999;
 }
 
 .footer-link {
-  color: $uni-color-primary;
+  color: #1296db;
   margin: 0 8rpx;
 }
 </style> 
