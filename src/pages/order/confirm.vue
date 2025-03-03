@@ -161,13 +161,27 @@ const submitOrder = () => {
     <!-- 门店信息 -->
     <view class="shop-section">
       <view class="shop-header">
-        <view class="shop-name-wrap">
-          <text class="shop-name">{{ orderInfo.shop.name }}</text>
-          <text class="shop-arrow">></text>
+        <view class="shop-info">
+          <view class="shop-name-wrap">
+            <text class="shop-name">{{ orderInfo.shop.name }}</text>
+            <text class="shop-arrow">></text>
+          </view>
+          <view class="shop-distance">
+            <image src="/static/order/location.png" class="location-icon" mode="aspectFit" />
+            <text>距您{{ orderInfo.shop.distance }}</text>
+          </view>
         </view>
-        <view class="shop-distance">
-          <image src="/static/order/location.png" class="location-icon" mode="aspectFit" />
-          <text>距您{{ orderInfo.shop.distance }}</text>
+        <view class="delivery-switch">
+          <view 
+            class="switch-option" 
+            :class="{ active: deliveryType === '自取' }"
+            @tap="deliveryType = '自取'"
+          >自取</view>
+          <view 
+            class="switch-option" 
+            :class="{ active: deliveryType === '外卖' }"
+            @tap="deliveryType = '外卖'"
+          >外卖</view>
         </view>
       </view>
     </view>
@@ -345,10 +359,16 @@ const submitOrder = () => {
   
   .shop-header {
     padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    
+    .shop-info {
+      flex: 1;
+    }
     
     .shop-name-wrap {
       display: flex;
-      justify-content: space-between;
       align-items: center;
       margin-bottom: 8px;
       
@@ -361,6 +381,7 @@ const submitOrder = () => {
       .shop-arrow {
         font-size: 16px;
         color: #999999;
+        margin-left: 4px;
       }
     }
     
@@ -374,6 +395,26 @@ const submitOrder = () => {
         width: 16px;
         height: 16px;
         margin-right: 4px;
+      }
+    }
+    
+    .delivery-switch {
+      display: flex;
+      background-color: #f5f5f5;
+      border-radius: 20px;
+      padding: 2px;
+      
+      .switch-option {
+        padding: 4px 10px;
+        font-size: 12px;
+        color: #666;
+        border-radius: 20px;
+        transition: all 0.3s;
+        
+        &.active {
+          background-color: #1296db;
+          color: #ffffff;
+        }
       }
     }
   }
@@ -830,7 +871,7 @@ const submitOrder = () => {
     height: 40px;
     line-height: 40px;
     text-align: center;
-    background: #f0ad4e;
+    background: #1296db;
     color: #ffffff;
     font-size: 14px;
     font-weight: 500;

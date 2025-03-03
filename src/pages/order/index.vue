@@ -246,6 +246,24 @@ const cartItems = ref([
     quantity: 1,
     image: '/static/order/cart.png',
     selected: true // 修改为selected属性
+  },
+  {
+    id: 1,
+    name: '雪山多肉青提',
+    desc: 'PLA可降解吸管(推荐),需要配2个(备选果肉)',
+    price: 96,
+    quantity: 1,
+    image: '/static/order/cart.png',
+    selected: true // 修改为selected属性
+  },
+  {
+    id: 1,
+    name: '雪山多肉青提',
+    desc: 'PLA可降解吸管(推荐),需要配2个(备选果肉)',
+    price: 96,
+    quantity: 1,
+    image: '/static/order/cart.png',
+    selected: true // 修改为selected属性
   }
 ]);
 
@@ -277,7 +295,7 @@ const toggleSelectAll = () => {
 // 修改商品数量
 const changeQuantity = (item, change) => {
   const newQuantity = item.quantity + change;
-  if (newQuantity < 1) return;
+  if (newQuantity < 1)
   item.quantity = newQuantity;
 };
 
