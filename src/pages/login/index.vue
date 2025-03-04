@@ -53,14 +53,14 @@
 
 <script setup>
 import { login, wechatLogin } from '@/api/user'
-import { reactive, ref } from 'vue'
+import { reactive } from 'vue'
 
-const activeTab = ref('login')
 const form = reactive({
   mobile: '',
   password: '',
   confirmPassword: ''
 })
+
 
 // 表单验证
 const validateForm = () => {
@@ -111,6 +111,8 @@ const handleSubmit = async () => {
     
     // 保存token
     wx.setStorageSync('token', res.data.token)
+    // 保存用户信息
+    wx.setStorageSync('userInfo', res.data.userInfo)
     // 跳转到首页
     wx.switchTab({
       url: '/pages/index/index'
@@ -137,6 +139,7 @@ const handleWechatLogin = async () => {
       lang: 'zh_CN'
     })
 
+
     // 2. 获取登录凭证
     const { code } = await wx.login()
     
@@ -147,15 +150,10 @@ const handleWechatLogin = async () => {
     // 3. 调用后端接口，发送code和用户信息
     const res = await wechatLogin({
       code,
-      userInfo: {
-        nickName: userInfo.nickName,
-        avatarUrl: userInfo.avatarUrl,
-        gender: userInfo.gender,
-        country: userInfo.country,
-        province: userInfo.province,
-        city: userInfo.city
-      }
+      nickName: userInfo.nickName,
+      avatarUrl: userInfo.avatarUrl
     })
+
 
     // 4. 保存token和用户信息
     const finalUserInfo = {

@@ -295,7 +295,13 @@ const toggleSelectAll = () => {
 // 修改商品数量
 const changeQuantity = (item, change) => {
   const newQuantity = item.quantity + change;
-  if (newQuantity < 1)
+  if (newQuantity < 1) {
+    uni.showToast({
+      title: '数量不能小于1',
+      icon: 'none'
+    })
+    return
+  }
   item.quantity = newQuantity;
 };
 
@@ -575,7 +581,7 @@ const toggleDescription = () => {
             <text>合计：</text>
             <text class="price">¥{{ totalPrice }}</text>
           </view>
-          <view class="checkout-btn">结算</view>
+          <view class="checkout-btn" @tap="buyNow">结算</view>
         </view>
       </view>
     </view>

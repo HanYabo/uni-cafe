@@ -56,6 +56,13 @@ const getStatusClass = (status) => {
     default: return '';
   }
 }
+
+// 跳转订单详情
+const goToDetail = (id) => {
+  uni.navigateTo({
+    url: `/pages/record/detail?id=${id}`
+  })
+}
 </script>
 
 <template>
@@ -102,7 +109,7 @@ const getStatusClass = (status) => {
           <view class="order-time">{{ order.createTime }}</view>
           <view class="order-actions">
             <view class="btn btn-outline">再来一单</view>
-            <view class="btn btn-primary">查看详情</view>
+            <view class="btn btn-primary" @tap="goToDetail(order.id)">查看详情</view>
           </view>
         </view>
       </view>

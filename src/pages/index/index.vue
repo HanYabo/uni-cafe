@@ -51,9 +51,9 @@ const handleCloseMemberCode = () => {
 <template>
   <view class="layout" :style="{ paddingTop: statusBarHeight + 'px' }">
     <view class="portfolio" v-if="userInfo">
-      <image :src="userInfo.avatarUrl || '/static/index/qrcode.svg'" class="avatar" />
+      <image :src="userInfo.avatarUrl || '/static/mine/avatar.png'" class="avatar" />
       <view class="text">
-        <text class="username">{{ userInfo.nickName || '未知用户' }}</text>
+        <text class="username">{{ userInfo.nickName }}</text>
         <text class="remind">有1张优惠券未使用，立即查看></text>
       </view>
       <view class="line1"></view>

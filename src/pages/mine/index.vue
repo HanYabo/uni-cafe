@@ -1,15 +1,27 @@
 <script setup>
+import { onShow } from '@dcloudio/uni-app'
 import { onMounted, ref } from 'vue'
-
 const statusBarHeight = ref(0)
+const userInfo = ref(null)
 
 onMounted(() => {
   const systemInfo = uni.getSystemInfoSync()
   statusBarHeight.value = systemInfo.statusBarHeight || 0
 })
 
+// 检查登录状态
+const checkLoginStatus = () => {
+  const info = wx.getStorageSync('userInfo')
+  userInfo.value = info || null
+}
+
+// 页面显示时检查登录状态
+onShow(() => {
+  checkLoginStatus()
+})
+
 const handleLogin = () => {
-  uni.navigateTo({
+  wx.navigateTo({
     url: '/pages/login/index'
   })
 }
@@ -44,12 +56,16 @@ const coupons = ref([
     <view class="safe-area">
       <!-- 头像模块 -->
       <view class="portfolio">
-        <image src="/static/my/avatar.png" alt="头像" class="avatar" />
+        <image 
+          :src="userInfo ? userInfo.avatarUrl : '/static/mine/avatar.png'" 
+          alt="头像" 
+          class="avatar" 
+        />
         <view class="text">
-          <text class="username">Hello!</text> <br>
-          <text class="remind">登录享受更多精彩服务</text>
+          <text class="username">{{ userInfo ? userInfo.nickName : 'Hello!' }}</text> <br>
+          <text class="remind" v-if="!userInfo">登录享受更多精彩服务</text>
         </view>
-        <view class="btn" @click="handleLogin">登录/注册</view>
+        <view v-if="!userInfo" class="btn" @tap="handleLogin">登录/注册</view>
       </view>
       
       <!-- 优惠券模块 -->
@@ -183,13 +199,14 @@ const coupons = ref([
     background: linear-gradient(45deg, rgba(18, 150, 219, 0.1), rgba(18, 150, 219, 0.2));
     padding: 15rpx;
     z-index: 1;
+    object-fit: fill;
   }
 
   .text {
     margin-left: 20rpx;
     flex: 1;
     z-index: 1;
-    
+
     .username {
       font-size: 32rpx;
       font-weight: 600;
@@ -197,7 +214,7 @@ const coupons = ref([
       margin-bottom: 6rpx;
       display: block;
     }
-    
+
     .remind {
       font-size: 24rpx;
       color: #666;

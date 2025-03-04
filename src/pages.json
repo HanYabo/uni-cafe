@@ -40,6 +40,14 @@
 			}
 		},
 		{
+			"path": "pages/record/detail",
+			"style": {
+				"navigationBarTitleText": "订单详情",
+				"navigationBarBackgroundColor": "#ffffff",
+				"navigationBarTextStyle": "black"
+			}
+		},
+		{
 			"path": "pages/mine/index",
 			"style": {
 				"navigationBarTitleText": "我的"
