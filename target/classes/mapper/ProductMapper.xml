@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.han.cafe.mapper.ProductMapper">
+
+    <resultMap id="BaseResultMap" type="com.han.cafe.entity.Product">
+            <id property="productId" column="product_id" jdbcType="INTEGER"/>
+            <result property="categoryId" column="category_id" jdbcType="INTEGER"/>
+            <result property="name" column="name" jdbcType="VARCHAR"/>
+            <result property="description" column="description" jdbcType="VARCHAR"/>
+            <result property="basePrice" column="base_price" jdbcType="DECIMAL"/>
+            <result property="mainImage" column="main_image" jdbcType="VARCHAR"/>
+            <result property="detailImages" column="detail_images" jdbcType="OTHER"/>
+            <result property="monthSales" column="month_sales" jdbcType="INTEGER"/>
+            <result property="status" column="status" jdbcType="TINYINT"/>
+            <result property="sortOrder" column="sort_order" jdbcType="INTEGER"/>
+            <result property="specConfig" column="spec_config" jdbcType="OTHER"/>
+            <result property="createdAt" column="created_at" jdbcType="TIMESTAMP"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        product_id,category_id,name,
+        description,base_price,main_image,
+        detail_images,month_sales,status,
+        sort_order,spec_config,created_at
+    </sql>
+</mapper>
