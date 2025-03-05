@@ -9,21 +9,24 @@ const addressList = ref([
   {
     id: 1,
     isDefault: true,
-    address: '贵阳市 | 贵州省贵阳市花溪区数字经济产业园3号楼2楼阿里创新中心',
+    city: '贵阳市',
+    address: '贵州省贵阳市花溪区数字经济产业园3号楼2楼阿里创新中心',
     contact: '廖先生',
     phone: '15085968569'
   },
   {
     id: 2,
     isDefault: false,
-    address: '贵阳市 | 贵州省贵阳市花溪区数字经济产业园3号楼2楼阿里创新中心',
+    city: '贵阳市',
+    address: '贵州省贵阳市花溪区数字经济产业园3号楼2楼阿里创新中心',
     contact: '廖先生',
     phone: '15085968569'
   },
   {
     id: 3,
     isDefault: false,
-    address: '贵阳市 | 贵州省贵阳市花溪区数字经济产业园3号楼2楼阿里创新中心',
+    city: '贵阳市',
+    address: '贵州省贵阳市花溪区数字经济产业园3号楼2楼阿里创新中心',
     contact: '廖先生',
     phone: '15085968569'
   }
@@ -48,7 +51,7 @@ const handleEditAddress = (id) => {
 </script>
 
 <template>
-  <view class="layout">
+  <view class="address-container">
     <!-- 状态栏占位 -->
     <view class="status-bar" :style="{ height: statusBarHeight + 'px' }"></view>
     
@@ -61,48 +64,38 @@ const handleEditAddress = (id) => {
       <view class="placeholder"></view>
     </view>
 
-    <!-- 主内容区域 -->
-    <view class="content">
-      <view class="address-list">
-        <view 
-          class="address-item" 
-          v-for="item in addressList" 
-          :key="item.id"
-        >
-          <view class="main-content">
-            <view class="location-tag" v-if="item.isDefault">当前城市</view>
-            <view class="address-detail">{{ item.address }}</view>
-            <view class="contact-info">
-              <text class="name">{{ item.contact }}</text>
-              <text class="phone">{{ item.phone }}</text>
-            </view>
+    <!-- 地址列表 -->
+    <scroll-view scroll-y class="address-list">
+      <view class="address-item" v-for="(address, index) in addressList" :key="index">
+        <view class="address-content">
+          <view class="location-info">
+            <view class="tag" v-if="address.isDefault">默认</view>
+            <text class="address-text">{{ address.city }} | {{ address.address }}</text>
           </view>
-          <view class="edit-btn" @tap="() => handleEditAddress(item.id)">
-            <image src="/static/address/edit.png" class="edit-icon" />
+          <view class="contact-info">
+            <text class="name">{{ address.contact }}</text>
+            <text class="phone">{{ address.phone }}</text>
           </view>
         </view>
+        <view class="edit-btn" @tap="() => handleEditAddress(address.id)">
+          <text>修改</text>
+        </view>
       </view>
-    </view>
+    </scroll-view>
 
-    <!-- 底部按钮 -->
-    <view class="bottom-bar">
-      <view class="wechat-import">
-        <image src="/static/address/wechat.png" class="wechat-icon" />
-        <text>微信导入</text>
-      </view>
-      <view class="add-btn" @tap="handleAddAddress">
-        <text>添加地址</text>
-      </view>
+    <!-- 底部按钮组 -->
+    <view class="bottom-buttons">
+      <button class="wechat-btn">微信导入</button>
+      <button class="add-btn" @tap="handleAddAddress">新增地址</button>
     </view>
   </view>
 </template>
 
-<style scoped lang="scss">
-.layout {
+<style lang="scss" scoped>
+.address-container {
   min-height: 100vh;
-  background: #f6f6f6;
-  display: flex;
-  flex-direction: column;
+  background: #f7f7f7;
+  position: relative;
 }
 
 .status-bar {
@@ -116,145 +109,157 @@ const handleEditAddress = (id) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 30rpx;
+  padding: 0 16px;
   box-sizing: border-box;
   position: relative;
   z-index: 100;
 
   .back {
-    width: 60rpx;
-    height: 60rpx;
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
-    
+
     .back-icon {
-      font-size: 36rpx;
+      font-size: 18px;
       color: #333;
     }
   }
 
   .title {
-    font-size: 32rpx;
-    font-weight: 600;
+    font-size: 16px;
+    font-weight: 500;
     color: #333;
   }
 
   .placeholder {
-    width: 60rpx;
+    width: 32px;
   }
 }
 
-.content {
-  flex: 1;
-  padding: 20rpx 30rpx;
+.address-list {
+  padding: 12px 16px;
   box-sizing: border-box;
-  overflow-y: auto;
-}
+  height: calc(100vh - 44px - var(--status-bar-height) - 80px);
 
-.address-item {
-  background: #ffffff;
-  border-radius: 16rpx;
-  padding: 30rpx;
-  margin-bottom: 20rpx;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
-
-  .main-content {
-    flex: 1;
-    margin-right: 20rpx;
-  }
-
-  .location-tag {
-    display: inline-block;
-    font-size: 22rpx;
-    color: #1296db;
-    background: rgba(18, 150, 219, 0.1);
-    padding: 4rpx 16rpx;
-    border-radius: 20rpx;
-    margin-bottom: 16rpx;
-  }
-
-  .address-detail {
-    font-size: 28rpx;
-    color: #333;
-    line-height: 1.5;
-    margin-bottom: 16rpx;
-  }
-
-  .contact-info {
-    font-size: 26rpx;
-    color: #666;
-    
-    .name {
-      margin-right: 20rpx;
-    }
-    
-    .phone {
-      color: #999;
-    }
-  }
-
-  .edit-btn {
-    width: 40rpx;
-    height: 40rpx;
-    padding: 10rpx;
-    
-    .edit-icon {
-      width: 100%;
-      height: 100%;
-    }
-  }
-}
-
-.bottom-bar {
-  width: 100%;
-  padding: 20rpx 30rpx;
-  background: #fff;
-  box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.05);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-sizing: border-box;
-
-  .wechat-import {
+  .address-item {
+    background: #fff;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
     display: flex;
     align-items: center;
-    padding: 20rpx 30rpx;
-    background: #f8f8f8;
-    border-radius: 40rpx;
+    min-height: 80px;
     
-    .wechat-icon {
-      width: 40rpx;
-      height: 40rpx;
-      margin-right: 10rpx;
+    .address-content {
+      flex: 1;
+      margin-right: 12px;
+      
+      .location-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        
+        .tag {
+          font-size: 10px;
+          color: #1296db;
+          background: rgba(18, 150, 219, 0.1);
+          padding: 2px 6px;
+          border-radius: 4px;
+          flex-shrink: 0;
+        }
+        
+        .address-text {
+          font-size: 14px;
+          color: #333;
+          line-height: 1.4;
+        }
+      }
+      
+      .contact-info {
+        font-size: 12px;
+        color: #999;
+        display: flex;
+        align-items: center;
+        margin-top: 8px;
+        
+        .name {
+          margin-right: 12px;
+        }
+        
+        .phone {
+          color: #999;
+        }
+      }
     }
     
-    text {
-      font-size: 28rpx;
-      color: #333;
+    .edit-btn {
+      padding: 4px 12px;
+      font-size: 12px;
+      color: #666;
+      align-self: center;
+      flex-shrink: 0;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+    }
+  }
+}
+
+.bottom-buttons {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  background: #fff;
+  display: flex;
+  gap: 12px;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.04);
+
+  .wechat-btn, .add-btn {
+    flex: 1;
+    height: 40px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    margin: 0;
+    border: none;
+    box-sizing: border-box;
+  }
+
+  .wechat-btn {
+    background: #f8f8f8;
+    color: #333;
+    position: relative;
+
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 200%;
+      height: 200%;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      border-radius: 40px;
+      transform: scale(0.5);
+      transform-origin: 0 0;
+      box-sizing: border-box;
     }
   }
 
   .add-btn {
-    flex: 1;
-    margin-left: 20rpx;
-    height: 80rpx;
-    background: linear-gradient(135deg, #1296db, #0f85c7);
-    border-radius: 40rpx;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    background: #1296db;
     color: #fff;
-    font-size: 28rpx;
-    box-shadow: 0 4rpx 12rpx rgba(18, 150, 219, 0.2);
+  }
 
-    &:active {
-      transform: scale(0.98);
-      box-shadow: 0 2rpx 6rpx rgba(18, 150, 219, 0.2);
-    }
+  .btn-hover {
+    opacity: 0.8;
   }
 }
 </style> 

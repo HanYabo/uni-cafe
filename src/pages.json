@@ -59,6 +59,12 @@
 				"navigationStyle": "custom",
 				"navigationBarTitleText": "地址管理"
 			}
+		},
+		{
+			"path": "pages/address/edit",
+			"style": {
+				"navigationBarTitleText": "编辑地址"
+			}
 		}
 	],
 	"globalStyle": {

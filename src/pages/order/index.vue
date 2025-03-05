@@ -1,17 +1,17 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { getCategoryWithProducts } from '@/api/category'
+import { onShow } from '@dcloudio/uni-app'
+import { computed, onMounted, reactive, ref } from 'vue'
 
 // 分类数据
-const categories = ref([
-  { id: 1, name: '当季限定' },
-  { id: 2, name: '每日鲜食' },
-  { id: 3, name: '喜茶制冰' },
-  { id: 4, name: '水果家族' },
-  { id: 5, name: '茗茶波波家族' },
-  { id: 6, name: '喜茶瓶装' },
-  { id: 7, name: '周边/茶叶' },
-  { id: 8, name: '加点小料' }
-])
+const categories = ref(null)
+
+
+onShow(() => {
+  getCategoryWithProducts().then(res => {
+    categories.value = res.data
+  })
+})
 
 // 商品数据
 const products = ref([
@@ -62,7 +62,7 @@ const products = ref([
   }
 ])
 
-const currentCategory = ref(1)
+const currentCategory = ref(0)
 const statusBarHeight = ref(0)
 const navBarHeight = ref(44)
 const menuButtonInfo = ref(null)
@@ -82,7 +82,7 @@ const allSelected = ref(true);
 
 // 添加商品详情面板显示状态控制
 const isProductDetailVisible = ref(false);
-const currentProduct = ref(null);
+const currentProduct = reactive({});
 
 // 添加商品规格选择相关数据
 const cupSizes = ref([
@@ -176,6 +176,7 @@ const shopInfo = {
 // 切换分类
 const selectCategory = (id) => {
   currentCategory.value = id
+  console.log(currentCategory.value)
 }
 
 // 添加导航栏相关的计算属性
@@ -237,35 +238,7 @@ const closeCartPanel = () => {
 };
 
 // 修改购物袋数据结构，添加选中状态
-const cartItems = ref([
-  {
-    id: 1,
-    name: '雪山多肉青提',
-    desc: 'PLA可降解吸管(推荐),需要配2个(备选果肉)',
-    price: 96,
-    quantity: 1,
-    image: '/static/order/cart.png',
-    selected: true // 修改为selected属性
-  },
-  {
-    id: 1,
-    name: '雪山多肉青提',
-    desc: 'PLA可降解吸管(推荐),需要配2个(备选果肉)',
-    price: 96,
-    quantity: 1,
-    image: '/static/order/cart.png',
-    selected: true // 修改为selected属性
-  },
-  {
-    id: 1,
-    name: '雪山多肉青提',
-    desc: 'PLA可降解吸管(推荐),需要配2个(备选果肉)',
-    price: 96,
-    quantity: 1,
-    image: '/static/order/cart.png',
-    selected: true // 修改为selected属性
-  }
-]);
+const cartItems = ref([]);
 
 // 计算总价函数，只计算选中的商品
 const totalPrice = computed(() => {
@@ -313,7 +286,19 @@ const clearCart = () => {
 
 // 开启商品详情面板
 const openProductDetail = (product) => {
-  currentProduct.value = product;
+  Object.assign(currentProduct, product);
+  // 初始化每个规格的选中值
+  if (currentProduct.specs) {
+    currentProduct.specs.forEach(spec => {
+      // 如果没有选中值，则查找默认值
+      if (!spec.selectedValueId) {
+        const defaultValue = spec.values.find(v => v.isDefault);
+        if (defaultValue) {
+          spec.selectedValueId = defaultValue.specValueId;
+        }
+      }
+    });
+  }
   isProductDetailVisible.value = true;
 };
 
@@ -323,56 +308,63 @@ const closeProductDetail = () => {
 };
 
 // 选择规格
-const selectOption = (options, optionId) => {
-  options.forEach(option => {
-    option.selected = option.id === optionId;
-  });
+const selectOption = (spec, specValueId) => {
+  spec.selectedValueId = specValueId;
 };
 
 // 计算选中规格的价格
 const selectedPrice = computed(() => {
-  if (!currentProduct.value) return 0;
+  if (!currentProduct.productId) return 0;
   
-  const basePrice = currentProduct.value.price;
-  const sizePrice = cupSizes.value.find(size => size.selected)?.price || 0;
+  let totalPrice = currentProduct.basePrice || 0;
   
-  return basePrice + sizePrice;
+  // 计算所有规格的附加价格
+  if (currentProduct.specs) {
+    currentProduct.specs.forEach(spec => {
+      const selectedValue = spec.values.find(v => 
+        v.specValueId === spec.selectedValueId || 
+        (!spec.selectedValueId && v.isDefault)
+      );
+      if (selectedValue && selectedValue.extraPrice) {
+        totalPrice += selectedValue.extraPrice;
+      }
+    });
+  }
+  
+  return totalPrice * productQuantity.value;
 });
-
-// 修改商品数量
-const changeProductQuantity = (change) => {
-  const newQuantity = productQuantity.value + change;
-  if (newQuantity < 1) return;
-  productQuantity.value = newQuantity;
-};
 
 // 计算已选规格文本
 const selectedSpecsText = computed(() => {
-  if (!currentProduct.value) return '';
+  if (!currentProduct.productId) return '';
   
-  const specs = [];
-  const selectedSize = cupSizes.value.find(size => size.selected);
-  const selectedTemp = temperatures.value.find(temp => temp.selected);
-  const selectedSugar = sugarLevels.value.find(sugar => sugar.selected);
+  const selectedSpecs = [];
+  if (currentProduct.specs) {
+    currentProduct.specs.forEach(spec => {
+      const selectedValue = spec.values.find(v => 
+        v.specValueId === spec.selectedValueId || 
+        (!spec.selectedValueId && v.isDefault)
+      );
+      if (selectedValue) {
+        selectedSpecs.push(selectedValue.value);
+      }
+    });
+  }
   
-  if (selectedSize) specs.push(selectedSize.name);
-  if (selectedTemp) specs.push(selectedTemp.name);
-  if (selectedSugar) specs.push(selectedSugar.name);
-  
-  return specs.join('，');
+  return selectedSpecs.join('，');
 });
 
 // 修改添加到购物车方法，包含数量
 const addToCart = () => {
-  if (!currentProduct.value) return;
+  if (!currentProduct.productId) return;
   
   const newItem = {
     id: Date.now(),
-    name: currentProduct.value.name,
+    name: currentProduct.name,
     desc: selectedSpecsText.value,
     price: selectedPrice.value,
     quantity: productQuantity.value,
-    image: currentProduct.value.image,
+    image: currentProduct.image,
     selected: true
   };
   
@@ -383,17 +375,17 @@ const addToCart = () => {
 
 // 修改立即购买方法
 const buyNow = () => {
-  if (!currentProduct.value) return;
+  if (!currentProduct.productId) return;
   
   // 构造订单数据
   const orderData = {
     product: {
-      id: currentProduct.value.id,
-      name: currentProduct.value.name,
+      id: currentProduct.id,
+      name: currentProduct.name,
       specs: selectedSpecsText.value,
       price: selectedPrice.value,
       quantity: productQuantity.value,
-      image: currentProduct.value.image
+      image: currentProduct.image
     }
   };
   
@@ -478,11 +470,11 @@ const toggleDescription = () => {
       <!-- 左侧分类导航 -->
       <scroll-view scroll-y class="category-list">
         <view
-          v-for="item in categories"
-          :key="item.id"
+          v-for="(item, index) in categories"
+          :key="index"
           class="category-item"
-          :class="{ active: currentCategory === item.id }"
-          @tap="selectCategory(item.id)"
+          :class="{ active: currentCategory === index }"
+          @tap="selectCategory(index)"
         >
           {{ item.name }}
         </view>
@@ -496,19 +488,19 @@ const toggleDescription = () => {
           :show-scrollbar="false"
           enhanced
         >
-        <view class="section-title">当季限定</view>
-          <view class="product-item" v-for="product in products" :key="product.id" @tap="openProductDetail(product)">
-          <image :src="product.image" class="product-image" mode="aspectFill" />
+        <view class="section-title">{{ categories[currentCategory].name }}</view>
+          <view class="product-item" v-for="product in categories[currentCategory].products" :key="product.productId" @tap="openProductDetail(product)">
+          <image :src="product.mainImage" class="product-image" mode="aspectFill" />
           <view class="product-info">
             <text class="product-name">{{ product.name }}</text>
-            <text class="product-desc">{{ product.desc }}</text>
+            <text class="product-desc">{{ product.description }}</text>
             <view class="tags">
-              <text v-for="(tag, index) in product.tags" :key="index" class="tag">{{ tag }}</text>
+              <text class="tag">支持配送</text>
             </view>
             <view class="product-bottom">
               <view class="price">
                 <text class="symbol">¥</text>
-                <text class="number">{{ product.price }}</text>
+                <text class="number">{{ product.basePrice }}</text>
               </view>
                 <view class="select-btn" @tap.stop="openProductDetail(product)">选规格</view>
             </view>
@@ -537,6 +529,7 @@ const toggleDescription = () => {
       <view class="checkout-btn">结算</view>
     </view>
 
+    // TODO :动态数据
     <!-- 购物袋弹出面板 -->
     <view class="cart-panel-container" :class="{ visible: isCartPanelVisible }" @tap="closeCartPanel">
       <view class="cart-panel" @tap.stop>
@@ -610,51 +603,19 @@ const toggleDescription = () => {
             </text>
           </view>
           
-          <!-- 杯型选择 -->
-          <view class="spec-section">
-            <view class="section-title">杯型</view>
+          <!-- 规格展示 -->
+          <view class="spec-section" v-for="spec in currentProduct.specs" :key="spec.specId">
+            <view class="section-title">{{ spec.name }}</view>
             <view class="options-list">
               <view 
-                v-for="size in cupSizes" 
-                :key="size.id" 
-                class="option-item" 
-                :class="{ active: size.selected }"
-                @tap="selectOption(cupSizes, size.id)"
+                v-for="value in spec.values" 
+                :key="value.specValueId" 
+                class="option-item"
+                :class="{ active: value.specValueId === spec.selectedValueId || (!spec.selectedValueId && value.isDefault) }"
+                @tap="selectOption(spec, value.specValueId)"
               >
-                <text>{{ size.name }}</text>
-                <text v-if="size.price > 0" class="extra-price">+{{ size.price }}元</text>
-              </view>
-            </view>
-          </view>
-          
-          <!-- 温度选择 -->
-          <view class="spec-section">
-            <view class="section-title">温度</view>
-            <view class="options-list">
-              <view 
-                v-for="temp in temperatures" 
-                :key="temp.id" 
-                class="option-item" 
-                :class="{ active: temp.selected }"
-                @tap="selectOption(temperatures, temp.id)"
-              >
-                {{ temp.name }}
-              </view>
-            </view>
-          </view>
-          
-          <!-- 糖度选择 -->
-          <view class="spec-section">
-            <view class="section-title">糖度</view>
-            <view class="options-list">
-              <view 
-                v-for="sugar in sugarLevels" 
-                :key="sugar.id" 
-                class="option-item" 
-                :class="{ active: sugar.selected }"
-                @tap="selectOption(sugarLevels, sugar.id)"
-              >
-                {{ sugar.name }}
+                <text>{{ value.value }}</text>
+                <text v-if="value.extraPrice > 0" class="extra-price">+{{ value.extraPrice }}元</text>
               </view>
             </view>
           </view>

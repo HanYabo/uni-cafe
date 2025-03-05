@@ -24,7 +24,7 @@ const requestInterceptor = (config) => {
   if (token) {
     config.header = {
       ...config.header,
-      'Authorization': `Bearer ${token}`
+      'Authorization': token
     }
   }
   return config
