@@ -110,7 +110,6 @@ const shopInfo = {
 // 切换分类
 const selectCategory = (id) => {
   currentCategory.value = id
-  console.log(currentCategory.value)
 }
 
 // 添加导航栏相关的计算属性
@@ -132,14 +131,6 @@ const navContentStyle = computed(() => {
   }
 })
 
-// 修改主内容区域的marginTop计算
-const mainContentStyle = computed(() => {
-  const menuButton = wx.getMenuButtonBoundingClientRect()
-  const navHeight = menuButton.height + (menuButton.top - statusBarHeight.value) * 2
-  return {
-    marginTop: `${statusBarHeight.value + navHeight + 76}px`
-  }
-})
 
 // 切换配送方式
 const switchDeliveryType = (type) => {

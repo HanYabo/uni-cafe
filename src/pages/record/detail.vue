@@ -12,34 +12,6 @@
       </view>
     </view>
 
-    <!-- 配送信息 -->
-    <view class="info-card">
-      <view class="card-title">
-        <text class="iconfont icon-location"></text>
-        <text>配送信息</text>
-      </view>
-      <view class="info-content">
-        <view class="delivery-type">
-          <text class="label">配送方式：</text>
-          <text class="value">{{ order.deliveryType === 'delivery' ? '外卖配送' : '到店自取' }}</text>
-        </view>
-        <template v-if="order.deliveryType === 'delivery'">
-          <view class="address">
-            <text class="name">{{ order.address.name }}</text>
-            <text class="phone">{{ order.address.phone }}</text>
-            <view class="address-text">{{ order.address.fullAddress }}</view>
-          </view>
-        </template>
-        <template v-else>
-          <view class="store-info">
-            <view class="store-name">{{ order.store.name }}</view>
-            <view class="store-address">{{ order.store.address }}</view>
-            <view class="store-phone">电话：{{ order.store.phone }}</view>
-          </view>
-        </template>
-      </view>
-    </view>
-
     <!-- 商品信息 -->
     <view class="info-card">
       <view class="card-title">
