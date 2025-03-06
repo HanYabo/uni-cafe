@@ -48,6 +48,10 @@ const handleEditAddress = (id) => {
     url: `/pages/address/edit?id=${id}`
   })
 }
+
+const handleBack = () => {
+  uni.navigateBack()
+}
 </script>
 
 <template>
@@ -57,7 +61,7 @@ const handleEditAddress = (id) => {
     
     <!-- 导航栏 -->
     <view class="nav-bar" :style="{ height: navBarHeight + 'px' }">
-      <view class="back" @tap="() => uni.navigateBack()">
+      <view class="back" @tap="handleBack">
         <text class="back-icon">〈</text>
       </view>
       <text class="title">收货地址</text>

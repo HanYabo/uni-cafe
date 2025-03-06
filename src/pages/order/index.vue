@@ -13,54 +13,6 @@ onShow(() => {
   })
 })
 
-// 商品数据
-const products = ref([
-  {
-    id: 1,
-    name: '冷萃不知寒',
-    desc: '大师监制高定系列，茶中别有韵，香极不知寒',
-    price: 23,
-    image: '/static/order/cart.png',
-    tags: ['支持配送', '含乳制品'],
-    description: '采用优质茶叶冷萃而成，口感清新爽口，茶香四溢。加入牛乳后，口感更加丝滑顺畅，回味悠长。适合所有喜爱高品质茶饮的人士。'
-  },
-  {
-    id: 2,
-    name: '冷萃不知寒',
-    desc: '大师监制高定系列，茶中别有韵，香极不知寒',
-    price: 23,
-    image: '/static/order/cart.png',
-    tags: ['支持配送', '含乳制品'],
-    description: '采用优质茶叶冷萃而成，口感清新爽口，茶香四溢。加入牛乳后，口感更加丝滑顺畅，回味悠长。适合所有喜爱高品质茶饮的人士。'
-  },
-  {
-    id: 3,
-    name: '冷萃不知寒',
-    desc: '大师监制高定系列，茶中别有韵，香极不知寒',
-    price: 23,
-    image: '/static/order/cart.png',
-    tags: ['支持配送', '含乳制品'],
-    description: '采用优质茶叶冷萃而成，口感清新爽口，茶香四溢。加入牛乳后，口感更加丝滑顺畅，回味悠长。适合所有喜爱高品质茶饮的人士。'
-  },
-  {
-    id: 4,
-    name: '冷萃不知寒',
-    desc: '大师监制高定系列，茶中别有韵，香极不知寒',
-    price: 23,
-    image: '/static/order/cart.png',
-    tags: ['支持配送', '含乳制品'],
-    description: '采用优质茶叶冷萃而成，口感清新爽口，茶香四溢。加入牛乳后，口感更加丝滑顺畅，回味悠长。适合所有喜爱高品质茶饮的人士。'
-  },
-  {
-    id: 5,
-    name: '冷萃不知寒',
-    desc: '大师监制高定系列，茶中别有韵，香极不知寒',
-    price: 23,
-    image: '/static/order/cart.png',
-    tags: ['支持配送', '含乳制品'],
-    description: '采用优质茶叶冷萃而成，口感清新爽口，茶香四溢。加入牛乳后，口感更加丝滑顺畅，回味悠长。适合所有喜爱高品质茶饮的人士。'
-  }
-])
 
 const currentCategory = ref(0)
 const statusBarHeight = ref(0)
@@ -84,24 +36,6 @@ const allSelected = ref(true);
 const isProductDetailVisible = ref(false);
 const currentProduct = reactive({});
 
-// 添加商品规格选择相关数据
-const cupSizes = ref([
-  { id: 1, name: '中杯', price: 0, selected: true },
-  { id: 2, name: '大杯', price: 3, selected: false }
-]);
-
-const temperatures = ref([
-  { id: 1, name: '冰', selected: true },
-  { id: 2, name: '热', selected: false }
-]);
-
-const sugarLevels = ref([
-  { id: 1, name: '标准甜', selected: true },
-  { id: 2, name: '少甜', selected: false },
-  { id: 3, name: '少少甜', selected: false },
-  { id: 4, name: '微甜', selected: false },
-  { id: 5, name: '不另外加糖', selected: false }
-]);
 
 // 添加商品描述展开状态控制
 const isDescriptionExpanded = ref(false);
@@ -354,17 +288,19 @@ const selectedSpecsText = computed(() => {
   return selectedSpecs.join('，');
 });
 
-// 修改添加到购物车方法，包含数量
+// TODO: 修改添加到购物车方法，包含数量
 const addToCart = () => {
+  console.log(currentProduct)
   if (!currentProduct.productId) return;
   
   const newItem = {
-    id: Date.now(),
+    id: currentProduct.productId,
+    categoryId: currentProduct.categoryId,
     name: currentProduct.name,
     desc: selectedSpecsText.value,
     price: selectedPrice.value,
     quantity: productQuantity.value,
-    image: currentProduct.image,
+    image: currentProduct.baseImage,
     selected: true
   };
   
@@ -405,6 +341,32 @@ const buyNow = () => {
 const toggleDescription = () => {
   isDescriptionExpanded.value = !isDescriptionExpanded.value;
 };
+
+// 结算方法，携带购物车参数跳转到confirm页面
+const handleCheckout = () => {
+  // 进行登录状态判断 如果未登录则提示用户并跳转到登录页面
+  const userInfo = uni.getStorageSync('userInfo')
+  if(!userInfo) {
+    uni.showToast({
+      title: '请先登录',
+      icon: 'none'
+    })
+    uni.navigateTo({
+      url: '/pages/login/index'
+    })
+    return
+  }
+  // 进行购物车非空判断
+  if(cartItems.value.length === 0) {
+    uni.showToast({
+      title: '购物袋为空',
+      icon: 'none'
+    })
+    return
+  }
+}
+
+
 </script>
 
 <template>
@@ -421,7 +383,7 @@ const toggleDescription = () => {
         <view class="nav-right" :style="searchBtnStyle">
           <view class="search-btn">
             <image src="/static/order/search.png" mode="aspectFit" />
-          </view>
+          </view>image.png
         </view>
       </view>
     </view>
@@ -439,7 +401,7 @@ const toggleDescription = () => {
             </view>
             <text class="distance" v-if="deliveryType === '自取'">距离您{{ shopInfo.distance }}</text>
             <view class="address-info" v-else>
-              <text class="address">广州市天河区融创购物中心1层</text>
+              <text class="address">郑州市二七区正弘城店</text>
               <text class="contact">张三 138****8888</text>
             </view>
           </view>
@@ -526,7 +488,7 @@ const toggleDescription = () => {
         </view>
         <text class="total">¥{{ totalPrice }}</text>
       </view>
-      <view class="checkout-btn">结算</view>
+      <view class="checkout-btn" @tap="handleCheckout">结算</view>
     </view>
 
     // TODO :动态数据
@@ -678,20 +640,22 @@ const toggleDescription = () => {
     .logo-capsule {
       display: flex;
       align-items: center;
-      height: 36px; // 增加胶囊高度
+      height: 32px;
+      width: v-bind('menuButtonInfo.width + "px"'); // 使用胶囊按钮的宽度
       background: #f8f8f8;
-      border-radius: 18px; // 保持圆角为高度的一半
-      padding: 0 16px; // 增加内边距
+      border-radius: 16px;
+      padding: 0 8px;
       border: 1px solid #e5e5e5;
+      box-sizing: border-box;
       
       image {
-        width: 30px; // 增加 logo 尺寸
-        height: 30px;
-        margin-right: 8px; // 增加右侧间距
+        width: 20px;
+        height: 20px;
+        margin-right: 4px;
       }
       
       text {
-        font-size: 16px; // 增加文字大小
+        font-size: 14px;
         color: #333;
       }
     }
@@ -702,8 +666,8 @@ const toggleDescription = () => {
       align-items: center;
 
       .search-btn {
-        width: 36px; // 保持与 logo 胶囊一致
-        height: 36px;
+        width: 36px; // 固定一个合适的大小
+        height: 36px; // 固定一个合适的大小
         display: flex;
         align-items: center;
         justify-content: center;
@@ -712,8 +676,8 @@ const toggleDescription = () => {
         background: #fff;
 
         image {
-          width: 20px; // 搜索图标也相应调大
-          height: 20px;
+          width: 22px; // 增大图标尺寸
+          height: 22px; // 增大图标尺寸
         }
       }
     }
@@ -729,6 +693,7 @@ const toggleDescription = () => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 
   .shop-header {
+    margin-top: 20px;
     height: 100%;
     display: flex;
     justify-content: space-between;
@@ -1399,16 +1364,21 @@ const toggleDescription = () => {
     border-radius: 20px 20px 0 0;
     transform: translateY(100%);
     transition: transform 0.3s ease;
-    padding-bottom: calc(8px + env(safe-area-inset-bottom));
-    max-height: 96vh; /* 增加最大高度以显示更多内容 */
+    max-height: calc(90vh - env(safe-area-inset-top) - 44px); // 减去胶囊高度
+    padding-top: env(safe-area-inset-top); // 添加顶部安全区域padding
     display: flex;
     flex-direction: column;
+    overflow: hidden;
     
     .detail-header {
+      position: sticky; // 设置为sticky
+      top: env(safe-area-inset-top); // 顶部对齐安全区域
+      z-index: 10; // 确保在内容之上
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
       padding: 16px;
+      background: #fff; // 添加背景色
       border-bottom: 1px solid #f5f5f5;
       
       .product-basic {
@@ -1455,13 +1425,22 @@ const toggleDescription = () => {
     
     .detail-content {
       flex: 1;
-      padding: 0;
       overflow-y: auto;
-      padding-bottom: 140px; /* 添加底部内边距，确保内容不被底部栏遮挡 */
+      position: relative;
+      padding: 0;
+      margin-bottom: calc(180px + env(safe-area-inset-bottom)); // 从140px增加到180px
+      -webkit-overflow-scrolling: touch;
+      
+      /* 隐藏滚动条但保持可滚动 */
+  &::-webkit-scrollbar {
+        display: none;
+      }
+      scrollbar-width: none;
+      -ms-overflow-style: none;
       
       /* 修改商品描述样式 */
       .product-description {
-        margin: 16px 16px 24px 16px; /* 增加底部间距 */
+        margin: 16px 16px 24px 16px;
         padding: 16px;
         background: #f8f8f8;
         border-radius: 12px;
@@ -1520,19 +1499,25 @@ const toggleDescription = () => {
       }
       
       .spec-section {
-        margin: 0 16px 16px 16px; /* 减小各规格选项之间的间距 */
+        margin: 0 16px 8px 16px;
         
         .section-title {
           font-size: 16px;
           font-weight: 500;
           color: #333;
-          margin-bottom: 10px; /* 减小标题与选项的间距 */
+          margin-bottom: 8px;
+          position: sticky;
+          top: 0;
+          background: #fff;
+          padding: 8px 0;
+          z-index: 1;
         }
         
         .options-list {
           display: flex;
           flex-wrap: wrap;
           gap: 12px;
+          padding-bottom: 8px;
           
           .option-item {
             width: 100px; /* 增加默认按钮宽度 */
@@ -1573,13 +1558,15 @@ const toggleDescription = () => {
       left: 0;
       right: 0;
       bottom: 0;
-      padding: 12px 16px; /* 增加上下内边距 */
+      padding: 24px 16px;
       background: #fff;
       border-top: 1px solid #f5f5f5;
-      padding-bottom: calc(12px + env(safe-area-inset-bottom));
+      padding-bottom: calc(24px + env(safe-area-inset-bottom)); // 改为与顶部padding一致
+      z-index: 10;
+      box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
       
       .selected-specs {
-        margin-bottom: 16px; /* 增加底部间距 */
+        margin-bottom: 16px; // 改回原来的大小
         padding: 0 4px;
       }
       

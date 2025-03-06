@@ -63,7 +63,8 @@
 		{
 			"path": "pages/address/edit",
 			"style": {
-				"navigationBarTitleText": "编辑地址"
+				"navigationStyle": "custom",
+				"navigationBarTextStyle": "black"
 			}
 		}
 	],

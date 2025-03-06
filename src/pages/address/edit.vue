@@ -1,4 +1,5 @@
 <script setup>
+import { onShow } from '@dcloudio/uni-app'
 import { ref } from 'vue'
 
 const statusBarHeight = ref(0)
@@ -18,6 +19,10 @@ onShow(() => {
   statusBarHeight.value = systemInfo.statusBarHeight || 0
 })
 
+const handleBack = () => {
+  uni.navigateBack()
+}
+
 const handleSave = () => {
   // TODO: 表单验证和保存逻辑
   uni.navigateBack()
@@ -36,6 +41,14 @@ const handleSelectAddress = () => {
   <view class="edit-container">
     <!-- 状态栏占位 -->
     <view class="status-bar" :style="{ height: statusBarHeight + 'px' }"></view>
+    
+    <!-- 自定义导航栏 -->
+    <view class="nav-bar" :style="{ height: navBarHeight + 'px' }">
+      <view class="nav-content">
+        <text class="back-icon" @tap="handleBack">〈</text>
+        <text class="title">新增地址</text>
+      </view>
+    </view>
 
     <!-- 表单内容 -->
     <view class="form-content">
@@ -139,41 +152,38 @@ const handleSelectAddress = () => {
 .nav-bar {
   background: #fff;
   width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
-  box-sizing: border-box;
-  position: relative;
-  z-index: 100;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
+  border-bottom: 0.5px solid #f0f0f0;
 
-  .back {
-    width: 32px;
-    height: 32px;
+  .nav-content {
+    height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
+    position: relative;
 
     .back-icon {
+      position: absolute;
+      left: 16px;
       font-size: 18px;
       color: #333;
+      z-index: 1;
     }
-  }
 
-  .title {
-    font-size: 16px;
-    font-weight: 500;
-    color: #333;
-  }
-
-  .placeholder {
-    width: 32px;
+    .title {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 18px;
+      font-weight: 500;
+      color: #333;
+      width: 150px;
+      text-align: center;
+    }
   }
 }
 
 .form-content {
-  padding: 12px 0;
+  margin-top: 12px;
   background: #fff;
 
   .form-item {

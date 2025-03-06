@@ -1,6 +1,6 @@
 <script setup>
 import { onShow } from '@dcloudio/uni-app'
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 const statusBarHeight = ref(0)
 const userInfo = ref(null)
 
@@ -49,6 +49,23 @@ const coupons = ref([
     expireDate: '2024-04-15'
   }
 ])
+
+const isLogin = computed(() => {
+  return !!uni.getStorageSync('token')
+})
+
+const handleAddressClick = () => {
+  if (!isLogin.value) {
+    uni.showToast({
+      title: '请先登录',
+      icon: 'none'
+    })
+    return
+  }
+  uni.navigateTo({
+    url: '/pages/address/index'
+  })
+}
 </script>
 
 <template>
@@ -74,20 +91,23 @@ const coupons = ref([
           <text class="coupon-title">我的优惠券</text>
           <text class="coupon-more">查看全部 ></text>
         </view>
-        <view class="coupon-list">
-          <view class="coupon-item" v-for="coupon in coupons" :key="coupon.id">
-            <view class="coupon-left">
-              <view class="amount-wrap">
-                <text class="symbol" v-if="coupon.type === '满减券'">¥</text>
-                <text class="amount">{{ coupon.amount }}</text>
-                <text class="unit" v-if="coupon.type === '折扣券'">折</text>
+        <view class="coupon-content">
+          <text v-if="!isLogin" class="login-tip">登录后查看优惠券</text>
+          <view class="coupon-list" :class="{ 'not-login': !isLogin }">
+            <view class="coupon-item" v-for="coupon in coupons" :key="coupon.id">
+              <view class="coupon-left">
+                <view class="amount-wrap">
+                  <text class="symbol" v-if="coupon.type === '满减券'">¥</text>
+                  <text class="amount">{{ coupon.amount }}</text>
+                  <text class="unit" v-if="coupon.type === '折扣券'">折</text>
+                </view>
+                <text class="condition">{{ coupon.condition }}</text>
               </view>
-              <text class="condition">{{ coupon.condition }}</text>
-            </view>
-            <view class="coupon-right">
-              <text class="type">{{ coupon.type }}</text>
-              <text class="date">有效期至：{{ coupon.expireDate }}</text>
-              <view class="use-btn">立即使用</view>
+              <view class="coupon-right">
+                <text class="type">{{ coupon.type }}</text>
+                <text class="date">有效期至：{{ coupon.expireDate }}</text>
+                <view class="use-btn">立即使用</view>
+              </view>
             </view>
           </view>
         </view>
@@ -98,7 +118,7 @@ const coupons = ref([
           <text class="util-title">常用功能</text>
         </view>
         <view class="util-grid">
-          <view class="grid-item" @tap="handleToAddress">
+          <view class="grid-item" @tap="handleAddressClick">
             <view class="icon-wrapper">
               <image src="/static/mine/address.png" class="icon" />
             </view>
@@ -291,102 +311,128 @@ const coupons = ref([
     }
   }
 
-  .coupon-list {
+  .coupon-content {
     position: relative;
-    z-index: 1;
+    min-height: 200rpx;
 
-    .coupon-item {
-      display: flex;
-      align-items: center;
-      height: 160rpx;
-      background: linear-gradient(45deg, rgba(18, 150, 219, 0.05), rgba(18, 150, 219, 0.1));
-      border-radius: 12rpx;
-      margin-bottom: 20rpx;
+    .login-tip {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 2;
+      background: #fff;
+      padding: 16rpx 32rpx;
+      border-radius: 30rpx;
+      box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+      font-size: 28rpx;
+      color: #333;
+      white-space: nowrap;
+    }
+
+    .coupon-list {
       position: relative;
-      overflow: hidden;
+      z-index: 1;
 
-      &::after {
-        content: '';
-        position: absolute;
-        left: 220rpx;
-        top: 0;
-        bottom: 0;
-        width: 2rpx;
-        background: rgba(255, 255, 255, 0.8);
-        border-right: 2rpx dashed rgba(18, 150, 219, 0.2);
+      &.not-login {
+        filter: blur(6px);
+        opacity: 0.3;
+        pointer-events: none;
       }
 
-      .coupon-left {
-        width: 220rpx;
+      .coupon-item {
         display: flex;
-        flex-direction: column;
         align-items: center;
-        justify-content: center;
+        height: 160rpx;
+        background: linear-gradient(45deg, rgba(18, 150, 219, 0.05), rgba(18, 150, 219, 0.1));
+        border-radius: 12rpx;
+        margin-bottom: 20rpx;
+        position: relative;
+        overflow: hidden;
 
-        .amount-wrap {
+        &::after {
+          content: '';
+          position: absolute;
+          left: 220rpx;
+          top: 0;
+          bottom: 0;
+          width: 2rpx;
+          background: rgba(255, 255, 255, 0.8);
+          border-right: 2rpx dashed rgba(18, 150, 219, 0.2);
+        }
+
+        .coupon-left {
+          width: 220rpx;
           display: flex;
-          align-items: baseline;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
 
-          .symbol {
-            font-size: 32rpx;
-            color: #1296db;
-            margin-right: 4rpx;
+          .amount-wrap {
+            display: flex;
+            align-items: baseline;
+
+            .symbol {
+              font-size: 32rpx;
+              color: #1296db;
+              margin-right: 4rpx;
+            }
+
+            .amount {
+              font-size: 60rpx;
+              font-weight: 600;
+              color: #1296db;
+              line-height: 1;
+            }
+
+            .unit {
+              font-size: 28rpx;
+              color: #1296db;
+              margin-left: 4rpx;
+            }
           }
 
-          .amount {
-            font-size: 60rpx;
-            font-weight: 600;
-            color: #1296db;
-            line-height: 1;
+          .condition {
+            font-size: 24rpx;
+            color: #666;
+            margin-top: 10rpx;
           }
+        }
 
-          .unit {
+        .coupon-right {
+          flex: 1;
+          padding: 20rpx 30rpx;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+
+          .type {
             font-size: 28rpx;
-            color: #1296db;
-            margin-left: 4rpx;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 8rpx;
           }
-        }
 
-        .condition {
-          font-size: 24rpx;
-          color: #666;
-          margin-top: 10rpx;
-        }
-      }
+          .date {
+            font-size: 22rpx;
+            color: #999;
+            margin-bottom: 16rpx;
+          }
 
-      .coupon-right {
-        flex: 1;
-        padding: 20rpx 30rpx;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
+          .use-btn {
+            width: fit-content;
+            padding: 8rpx 24rpx;
+            background: linear-gradient(135deg, #1296db, #0f85c7);
+            border-radius: 24rpx;
+            color: #fff;
+            font-size: 24rpx;
+            box-shadow: 0 4rpx 12rpx rgba(18, 150, 219, 0.2);
+            transition: all 0.3s ease;
 
-        .type {
-          font-size: 28rpx;
-          font-weight: 500;
-          color: #333;
-          margin-bottom: 8rpx;
-        }
-
-        .date {
-          font-size: 22rpx;
-          color: #999;
-          margin-bottom: 16rpx;
-        }
-
-        .use-btn {
-          width: fit-content;
-          padding: 8rpx 24rpx;
-          background: linear-gradient(135deg, #1296db, #0f85c7);
-          border-radius: 24rpx;
-          color: #fff;
-          font-size: 24rpx;
-          box-shadow: 0 4rpx 12rpx rgba(18, 150, 219, 0.2);
-          transition: all 0.3s ease;
-
-          &:active {
-            transform: scale(0.98);
-            box-shadow: 0 2rpx 6rpx rgba(18, 150, 219, 0.2);
+            &:active {
+              transform: scale(0.98);
+              box-shadow: 0 2rpx 6rpx rgba(18, 150, 219, 0.2);
+            }
           }
         }
       }
