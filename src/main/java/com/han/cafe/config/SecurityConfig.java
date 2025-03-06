@@ -40,7 +40,7 @@ public class SecurityConfig {
                 // 静态资源和上传文件访问
                 .requestMatchers("/static/**", "/uploads/**").permitAll()
                 // API接口访问
-                .requestMatchers("/api/auth/**", "/api/file/upload", "/api/categories/**").permitAll()
+                .requestMatchers("/api/auth/**", "/api/file/upload", "/api/categories/**", "/api/orders/**").permitAll()
                 // 其他所有请求需要认证
                 .anyRequest().authenticated()
             )
