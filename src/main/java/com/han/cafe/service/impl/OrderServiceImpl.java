@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Random;
 import java.util.stream.Collectors;
 
-import com.han.cafe.vo.*;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +26,12 @@ import com.han.cafe.mapper.ProductMapper;
 import com.han.cafe.mapper.SpecMapper;
 import com.han.cafe.mapper.SpecValueMapper;
 import com.han.cafe.service.OrderService;
+import com.han.cafe.vo.CreateOrderRequest;
+import com.han.cafe.vo.OrderItemRequest;
+import com.han.cafe.vo.OrderItemResponse;
+import com.han.cafe.vo.OrderItemSpecRequest;
+import com.han.cafe.vo.OrderItemSpecResponse;
+import com.han.cafe.vo.OrderResponse;
 
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
