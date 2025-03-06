@@ -156,7 +156,7 @@ const searchBtnStyle = computed(() => {
 
 // 切换购物袋面板显示状态
 const toggleCartPanel = () => {
-  if(cartItems.value.length === 0) {
+  if(cartItems.items.length === 0) {
     uni.showToast({
       title: '购物袋为空',
       icon: 'none'
@@ -172,16 +172,18 @@ const closeCartPanel = () => {
 };
 
 // 修改购物袋数据结构，添加选中状态
-const cartItems = ref([]);
+const cartItems = reactive({
+  items: []
+});
 
 // 计算总价函数，只计算选中的商品
 const totalPrice = computed(() => {
-  return cartItems.value.reduce((total, item) => total + (item.selected ? item.price * item.quantity : 0), 0);
+  return cartItems.items.reduce((total, item) => total + (item.selected ? item.price * item.quantity : 0), 0);
 });
 
 // 修改全选状态检测函数，确保对应使用selected属性
 const isAllSelected = computed(() => {
-  return cartItems.value.length > 0 && cartItems.value.every(item => item.selected);
+  return cartItems.items.length > 0 && cartItems.items.every(item => item.selected);
 });
 
 // 切换商品选中状态
@@ -194,7 +196,7 @@ const toggleItemSelected = (item) => {
 // 切换全选状态
 const toggleSelectAll = () => {
   allSelected.value = !allSelected.value;
-  cartItems.value.forEach(item => {
+  cartItems.items.forEach(item => {
     item.selected = allSelected.value;
   });
 };
@@ -214,7 +216,7 @@ const changeQuantity = (item, change) => {
 
 // 清空购物袋
 const clearCart = () => {
-  cartItems.value = [];
+  cartItems.items = [];
   closeCartPanel();
 };
 
@@ -288,23 +290,43 @@ const selectedSpecsText = computed(() => {
   return selectedSpecs.join('，');
 });
 
-// TODO: 修改添加到购物车方法，包含数量
+// 添加商品到购物车方法
 const addToCart = () => {
-  console.log(currentProduct)
   if (!currentProduct.productId) return;
   
+  // 构造规格参数
+  const specs = [];
+  if (currentProduct.specs) {
+    currentProduct.specs.forEach(spec => {
+      const selectedValue = spec.values.find(v => 
+        v.specValueId === spec.selectedValueId || 
+        (!spec.selectedValueId && v.isDefault)
+      );
+      if (selectedValue) {
+        specs.push({
+          specId: spec.specId,
+          specName: spec.name,
+          specValueId: selectedValue.specValueId,
+          specValue: selectedValue.value
+        });
+      }
+    });
+  }
+  
+  // 构造购物车项
   const newItem = {
-    id: currentProduct.productId,
+    productId: currentProduct.productId,
     categoryId: currentProduct.categoryId,
     name: currentProduct.name,
     desc: selectedSpecsText.value,
     price: selectedPrice.value,
     quantity: productQuantity.value,
-    image: currentProduct.baseImage,
-    selected: true
+    image: currentProduct.mainImage,
+    selected: true,
+    specs: specs
   };
   
-  cartItems.value.push(newItem);
+  cartItems.items.push(newItem);
   closeProductDetail();
   productQuantity.value = 1; // 重置数量
 };
@@ -312,21 +334,59 @@ const addToCart = () => {
 // 修改立即购买方法
 const buyNow = () => {
   if (!currentProduct.productId) return;
+
+  // 构造规格参数
+  const specs = [];
+  if (currentProduct.specs) {
+    currentProduct.specs.forEach(spec => {
+      const selectedValue = spec.values.find(v => 
+        v.specValueId === spec.selectedValueId || 
+        (!spec.selectedValueId && v.isDefault)
+      );
+      if (selectedValue) {
+        specs.push({
+          specId: spec.specId,
+          specName: spec.name,
+          specValueId: selectedValue.specValueId,
+          specValue: selectedValue.value
+        });
+      }
+    });
+  }
   
   // 构造订单数据
   const orderData = {
-    product: {
-      id: currentProduct.id,
+    products: {
+      productId: currentProduct.productId,
+      categoryId: currentProduct.categoryId,
       name: currentProduct.name,
-      specs: selectedSpecsText.value,
+      desc: selectedSpecsText.value,
+      specs: specs,
       price: selectedPrice.value,
       quantity: productQuantity.value,
-      image: currentProduct.image
+      image: currentProduct.baseImage
     }
   };
   
+  // 构造orderItems数据结构
+  const orderItems = [{
+    productId: currentProduct.productId,
+    quantity: productQuantity.value,
+    specs: currentProduct.specs.map(spec => {
+      const selectedValue = spec.values.find(v => 
+        v.specValueId === spec.selectedValueId || 
+        (!spec.selectedValueId && v.isDefault)
+      );
+      return {
+        specId: spec.specId,
+        specValueId: selectedValue.specValueId
+      };
+    })
+  }];
+  
   // 将订单数据存储到本地
   uni.setStorageSync('orderData', orderData);
+  uni.setStorageSync('orderItems', orderItems);
   
   // 关闭详情面板
   closeProductDetail();
@@ -357,14 +417,50 @@ const handleCheckout = () => {
     return
   }
   // 进行购物车非空判断
-  if(cartItems.value.length === 0) {
+  if(cartItems.items.length === 0) {
     uni.showToast({
       title: '购物袋为空',
       icon: 'none'
     })
     return
   }
-}
+
+  // 获取选中的商品
+  const selectedItems = cartItems.items.filter(item => item.selected);
+  
+  // 构造orderData数据结构，包含所有选中的商品
+  const orderData = {
+    products: selectedItems.map(item => ({
+      productId: item.productId,
+      categoryId: item.categoryId,
+      name: item.name,
+      desc: selectedSpecsText.value,
+      specs: item.specs,
+      price: item.price,
+      quantity: item.quantity,
+      image: item.image
+    }))
+  };
+
+  // 构造orderItems数据结构
+  const orderItems = selectedItems.map(item => ({
+    productId: item.productId,
+    quantity: item.quantity,
+    specs: item.specs.map(spec => ({
+      specId: spec.specId,
+      specValueId: spec.specValueId
+    }))
+  }));
+
+  // 将订单数据存储到本地
+  uni.setStorageSync('orderData', orderData);
+  uni.setStorageSync('orderItems', orderItems);
+  
+  // 跳转到确认订单页面
+  uni.navigateTo({
+    url: '/pages/order/confirm'
+  });
+};
 
 
 </script>
@@ -383,7 +479,7 @@ const handleCheckout = () => {
         <view class="nav-right" :style="searchBtnStyle">
           <view class="search-btn">
             <image src="/static/order/search.png" mode="aspectFit" />
-          </view>image.png
+          </view>
         </view>
       </view>
     </view>
@@ -484,7 +580,7 @@ const handleCheckout = () => {
       <view class="cart-left">
         <view class="cart-icon" @tap="toggleCartPanel">
           <image src="/static/order/cart.png" mode="aspectFit" />
-          <text class="badge">{{ cartItems.length }}</text>
+          <text class="badge">{{ cartItems.items.length }}</text>
         </view>
         <text class="total">¥{{ totalPrice }}</text>
       </view>
@@ -508,7 +604,7 @@ const handleCheckout = () => {
         </view>
         
         <scroll-view scroll-y class="cart-items">
-          <view class="cart-item" v-for="item in cartItems" :key="item.id">
+          <view class="cart-item" v-for="item in cartItems.items" :key="item.id">
             <!-- 添加商品勾选框 -->
             <view class="item-checkbox" @tap="toggleItemSelected(item)">
               <view class="checkbox" :class="{ checked: item.selected }">

@@ -1,11 +1,11 @@
 <script setup>
+import { createOrder } from '@/api/order';
 import { computed, onMounted, ref } from 'vue';
 
-// 订单信息
 const orderInfo = ref({
   products: [],
   shop: {
-    name: '广州融创GO店',
+    name: '郑州正弘城店',
     distance: '0.2公里',
     phone: '15085968569'
   },
@@ -21,11 +21,14 @@ const orderInfo = ref({
   note: ''
 });
 
+
+
 // 配送方式
 const deliveryType = ref('自取');
 
 // 计算总价
 const totalPrice = computed(() => {
+  if (!Array.isArray(orderInfo.value.products)) return 0;
   return orderInfo.value.products.reduce((total, item) => {
     return total + item.price * item.quantity;
   }, 0);
@@ -129,8 +132,13 @@ const cancelNote = () => {
 // 在页面加载时获取订单数据
 onMounted(() => {
   const orderData = uni.getStorageSync('orderData');
-  if (orderData && orderData.product) {
-    orderInfo.value.products = [orderData.product];
+  if (orderData) {
+    // 如果是单个商品（立即购买），将其转换为数组形式
+    if (orderData.products && !Array.isArray(orderData.products)) {
+      orderInfo.value.products = [orderData.products];
+    } else if (Array.isArray(orderData.products)) {
+      orderInfo.value.products = orderData.products;
+    }
   }
 });
 
@@ -139,20 +147,26 @@ const autoFill = () => {
 };
 
 // 提交订单
-const submitOrder = () => {
-  uni.showToast({
-    title: '订单提交成功',
-    icon: 'success',
-    duration: 2000
-  });
-  // 这里可以添加实际的订单提交逻辑
-  
-  // 跳转回点单页面
-  setTimeout(() => {
-    uni.switchTab({
-      url: '/pages/order/index'
+const submitOrder = async () => {
+  // 实际的订单提交逻辑
+  // 创建后端所需要参数
+  const items = uni.getStorageSync('orderItems');
+  const data = {
+    items: items,
+    remark: orderInfo.value.note,
+  }
+  // 异步接口
+  const res = await createOrder(data);
+  // 如果成功则跳转到支付页面
+  if (res.code === 200) {
+    uni.showToast({
+      title: '订单提交成功',
+      icon: 'success',
+      duration: 2000
     });
-  }, 2000);
+  }
+  // TODO: 执行模拟支付
+
 };
 </script>
 
@@ -197,20 +211,6 @@ const submitOrder = () => {
       </view>
     </view>
     
-    <!-- 取餐时间 -->
-    <view class="section pickup-section">
-      <view class="section-item">
-        <text class="item-label">取餐时间</text>
-        <view class="pickup-progress">
-          <view class="progress-bar">
-            <view class="progress-inner"></view>
-          </view>
-          <text class="pickup-time">{{ orderInfo.pickupTime }}</text>
-          <text class="pickup-note">杯杯现制，保证品质，请您耐心等待。</text>
-        </view>
-      </view>
-    </view>
-    
     <!-- 商品信息 -->
     <view class="section product-section">
       <view class="section-header">
@@ -219,11 +219,11 @@ const submitOrder = () => {
       
       <!-- 商品列表 -->
       <view class="product-list">
-        <view class="product-item" v-for="item in orderInfo.products" :key="item.id">
+        <view class="product-item" v-for="(item, index) in orderInfo.products" :key="index">
           <image :src="item.image" class="product-image" mode="aspectFill" />
           <view class="product-info">
             <text class="product-name">{{ item.name }}</text>
-            <text class="product-specs">{{ item.specs }}</text>
+            <text class="product-specs">{{ item.desc }}</text>
           </view>
           <view class="product-price-qty">
             <text class="product-price">¥{{ item.price }}</text>
@@ -438,53 +438,6 @@ const submitOrder = () => {
       color: #1296db;
       border: 1px solid #1296db;
       border-radius: 12px;
-    }
-  }
-}
-
-// 取餐时间样式
-.pickup-section {
-  .section-item {
-    display: block;
-    padding-bottom: 20px;
-  }
-  
-  .item-label {
-    display: block;
-    margin-bottom: 16px;
-  }
-  
-  .pickup-progress {
-    .progress-bar {
-      height: 4px;
-      background: #e9e9e9;
-      border-radius: 2px;
-      margin-bottom: 12px;
-      position: relative;
-      overflow: hidden;
-      
-      .progress-inner {
-        position: absolute;
-        left: 0;
-        top: 0;
-        height: 100%;
-        width: 30%;
-        background: #1296db;
-        border-radius: 2px;
-      }
-    }
-    
-    .pickup-time {
-      display: block;
-      font-size: 14px;
-      color: #333333;
-      margin-bottom: 8px;
-    }
-    
-    .pickup-note {
-      display: block;
-      font-size: 12px;
-      color: #999999;
     }
   }
 }
