@@ -1,8 +1,8 @@
 <script setup>
 import { getHistoryOrderAPI } from '@/api/order';
-import { onShow } from '@dcloudio/uni-app';
-import { computed, ref } from 'vue';
 import { formatTime } from '@/utils/format';
+import { onShow } from '@dcloudio/uni-app';
+import { computed, onUnmounted, ref } from 'vue';
 
 // 订单状态枚举
 const OrderStatus = {
@@ -15,6 +15,9 @@ const OrderStatus = {
 
 // 订单数据
 const orders = ref([])
+
+// 倒计时Map
+const countdownMap = ref(new Map())
 
 // 当前选中的状态
 const currentStatus = ref(OrderStatus.ALL)
@@ -40,6 +43,39 @@ const filteredOrders = computed(() => {
   return orders.value.filter(order => order.status === currentStatus.value)
 })
 
+// 设置倒计时
+const setupCountdown = (orderId, createdAt) => {
+  const orderTime = new Date(createdAt).getTime()
+  const now = new Date().getTime()
+  const timeLeft = Math.max(0, 600000 - (now - orderTime)) // 10分钟 = 600000毫秒
+
+  if (timeLeft > 0) {
+    const timer = setInterval(() => {
+      const currentTime = new Date().getTime()
+      const remaining = Math.max(0, 600000 - (currentTime - orderTime))
+      
+      if (remaining <= 0) {
+        clearInterval(timer)
+        countdownMap.value.delete(orderId)
+      } else {
+        const minutes = Math.floor(remaining / 60000)
+        const seconds = Math.floor((remaining % 60000) / 1000)
+        countdownMap.value.set(orderId, `${minutes}:${seconds.toString().padStart(2, '0')}`)
+      }
+    }, 1000)
+
+    // 初始设置
+    const minutes = Math.floor(timeLeft / 60000)
+    const seconds = Math.floor((timeLeft % 60000) / 1000)
+    countdownMap.value.set(orderId, `${minutes}:${seconds.toString().padStart(2, '0')}`)
+  }
+}
+
+// 清理所有定时器
+onUnmounted(() => {
+  countdownMap.value.clear()
+})
+
 // 获取订单列表
 const getHistoryOrderList = async () => {
   // 重新获取用户信息，确保是最新的
@@ -63,6 +99,13 @@ const getHistoryOrderList = async () => {
           subtotal: item.subtotal || 0
         }))
       }))
+
+      // 为待支付订单设置倒计时
+      orders.value.forEach(order => {
+        if (order.status === OrderStatus.WAITING_PAY) {
+          setupCountdown(order.orderId, order.createdAt)
+        }
+      })
     } else {
       uni.showToast({
         title: res.message,
@@ -152,6 +195,7 @@ onShow(() => {
         <view class="order-header">
           <view class="store-name">郑州正弘城店</view>
           <view class="order-status" :class="getStatusClass(order.status)">
+            <text v-if="order.status === OrderStatus.WAITING_PAY" class="countdown">{{ countdownMap.get(order.orderId) }}</text>
             {{ getStatusText(order.status) }}
           </view>
         </view>
@@ -170,7 +214,7 @@ onShow(() => {
           
           <view class="order-total">
             共{{ order.items.reduce((sum, item) => sum + item.quantity, 0) }}件商品
-            <text>合计 ¥{{ order.items.reduce((sum, item) => sum + parseInt(item.subtotal), 0).toFixed(2) }}</text>
+            <text>合计 ¥{{ order.actualAmount?.toFixed(2) }}</text>
           </view>
         </view>
 
@@ -178,8 +222,15 @@ onShow(() => {
         <view class="order-footer">
           <view class="order-time">{{ formatTime(order.createdAt) }}</view>
           <view class="order-actions">
-            <view class="btn btn-outline">删除订单</view>
-            <view class="btn btn-primary">再来一单</view>
+            <view class="btn btn-outline">
+              {{ order.status === OrderStatus.WAITING_PAY ? '取消订单' : '删除订单' }}
+            </view>
+            <view 
+              class="btn btn-primary"
+              :class="{ 'btn-pay': order.status === OrderStatus.WAITING_PAY }"
+            >
+              {{ order.status === OrderStatus.WAITING_PAY ? '立即支付' : '再来一单' }}
+            </view>
           </view>
         </view>
       </view>
@@ -262,6 +313,13 @@ onShow(() => {
 
         .order-status {
           font-size: 26rpx;
+          display: flex;
+          align-items: center;
+          
+          .countdown {
+            margin-right: 8rpx;
+            color: #ff6b00;
+          }
           
           &.status-waiting {
             color: #ff6b00;
@@ -354,5 +412,9 @@ onShow(() => {
       }
     }
   }
+}
+
+.btn-pay {
+  background: #ff6b00 !important;
 }
 </style>
