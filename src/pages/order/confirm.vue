@@ -1,5 +1,5 @@
 <script setup>
-import { createOrder } from '@/api/order';
+import { createOrder, payOrderAPI, cancelOrderAPI } from '@/api/order';
 import { computed, onMounted, ref } from 'vue';
 
 const orderInfo = ref({
@@ -146,6 +146,47 @@ onMounted(() => {
 const autoFill = () => {
 };
 
+// 模拟下单接口
+const payOrder = async (orderId) => {
+  const res = await payOrderAPI(orderId);
+  if (res.code === 200) {
+    // 提示用户支付成功并跳转到订单页面
+    uni.showToast({
+      title: '支付成功',
+      icon: 'success',
+    })
+    setTimeout(() => {
+      uni.switchTab({
+        url: '/pages/record/index'
+      })
+    }, 1500)
+  }else {
+    uni.showToast({
+      title: res.message,
+      icon: 'error',
+    })
+  }
+}
+
+// 取消订单
+const cancelOrder = async (orderId) => {
+  const res = await cancelOrderAPI(orderId);
+  if (res.code === 200) {
+    uni.showToast({
+      title: '取消订单成功',
+      icon: 'success',
+    })
+    setTimeout(() => {
+      uni.navigateBack();
+    }, 1500)
+  }else {
+    uni.showToast({
+      title: res.message,
+      icon: 'error',
+    })
+  }
+}
+
 // 提交订单
 const submitOrder = async () => {
   // 实际的订单提交逻辑
@@ -156,18 +197,34 @@ const submitOrder = async () => {
     remark: orderInfo.value.note,
   }
   // 异步接口
-  const res = await createOrder(data);
+  const result = await createOrder(data);
   // 如果成功则跳转到支付页面
-  if (res.code === 200) {
-    uni.showToast({
-      title: '订单提交成功',
-      icon: 'success',
-      duration: 2000
+  if (result.code === 200) {
+    // 显示模态框，让用户进行支付
+    uni.showModal({
+      title: '模拟支付',
+      content: '是否确认支付？',
+      success: (res) => {
+        if (res.confirm) {
+          // 执行模拟支付
+          if (!result.data || !result.data.orderId) {
+            uni.showToast({
+              title: '订单ID获取失败',
+              icon: 'none'
+            });
+            return;
+          }
+          payOrder(result.data.orderId); 
+        }
+        // 用户点击取消
+        if (res.cancel) {
+          // 触发取消订单方法
+          cancelOrder(result.data.orderId);
+        }
+      }
     });
   }
-  // TODO: 执行模拟支付
-
-};
+}
 </script>
 
 <template>

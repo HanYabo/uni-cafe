@@ -17,3 +17,28 @@ export const getHistoryOrderAPI = (userId) => {
   })
 }
 
+// 用户支付下单操作
+export const payOrderAPI = (orderId) => {
+  return request({
+    url: `/api/orders/${orderId}/pay`,
+    method: 'POST'
+  })
+}
+
+// 用户取消订单
+export const cancelOrderAPI = (orderId) => {
+  return request({
+    url: `/api/orders/${orderId}/cancel`,
+    method: 'POST',
+  })
+}
+
+// 通过订单id获取订单详情
+export const getOrderDetailAPI = (orderId) => {
+  return request({
+    url: `/api/orders/${orderId}`,
+    method: 'GET'
+  })
+}
+
+

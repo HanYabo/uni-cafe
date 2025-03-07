@@ -2,6 +2,7 @@
 import { getHistoryOrderAPI } from '@/api/order';
 import { onShow } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
+import { formatTime } from '@/utils/format';
 
 // 订单状态枚举
 const OrderStatus = {
@@ -14,6 +15,7 @@ const OrderStatus = {
 
 // 订单数据
 const orders = ref([])
+
 // 当前选中的状态
 const currentStatus = ref(OrderStatus.ALL)
 
@@ -21,7 +23,7 @@ const currentStatus = ref(OrderStatus.ALL)
 const statusTabs = [
   { label: '全部订单', value: OrderStatus.ALL },
   { label: '待支付', value: OrderStatus.WAITING_PAY },
-  { label: '进行中', value: OrderStatus.PROCESSING },
+  { label: '已支付', value: OrderStatus.PROCESSING },
   { label: '已完成', value: OrderStatus.COMPLETED }
 ]
 
@@ -49,13 +51,16 @@ const getHistoryOrderList = async () => {
       orders.value = res.data.map(order => ({
         orderId: order.orderId,
         status: order.status,
-        createTime: order.createTime,
-        totalPrice: order.totalPrice,
+        createdAt: order.createdAt,
+        totalAmount: order.totalAmount,
+        actualAmount: order.actualAmount,
         items: order.items.map(item => ({
           productName: item.productName,
-          specs: item.specs || [{ specValue: '' }],
+          specs: Array.isArray(item.specs) ? item.specs : [],
           quantity: item.quantity,
-          price: item.price || 0  // 确保有价格字段，默认为0
+          basePrice: item.basePrice || 0,
+          actualPrice: item.actualPrice || 0,
+          subtotal: item.subtotal || 0
         }))
       }))
     } else {
@@ -152,12 +157,12 @@ onShow(() => {
         </view>
 
         <!-- 订单内容 -->
-        <view class="order-content">
+        <view class="order-content" @tap="goToDetail(order.orderId)">
           <view class="product-list">
             <view class="product-item" v-for="(item, index) in order.items" :key="index">
               <view class="product-name">
                 {{ item.productName }}
-                <text class="product-size">{{ item.specs[0].specValue }}</text>
+                <text class="product-size" v-for="(spec, index) in item.specs" :key="index">{{ spec.specValue }}</text>
               </view>
               <view class="product-count">x{{ item.quantity }}</view>
             </view>
@@ -165,16 +170,16 @@ onShow(() => {
           
           <view class="order-total">
             共{{ order.items.reduce((sum, item) => sum + item.quantity, 0) }}件商品
-            <text>合计 ¥{{ order.items.reduce((sum, item) => sum + item.subtotal, 0).toFixed(2) }}</text>
+            <text>合计 ¥{{ order.items.reduce((sum, item) => sum + parseInt(item.subtotal), 0).toFixed(2) }}</text>
           </view>
         </view>
 
         <!-- 订单底部 -->
         <view class="order-footer">
-          <view class="order-time">{{ order.createdAt }}</view>
+          <view class="order-time">{{ formatTime(order.createdAt) }}</view>
           <view class="order-actions">
-            <view class="btn btn-outline">再来一单</view>
-            <view class="btn btn-primary" @tap="goToDetail(order.orderId)">查看详情</view>
+            <view class="btn btn-outline">删除订单</view>
+            <view class="btn btn-primary">再来一单</view>
           </view>
         </view>
       </view>
