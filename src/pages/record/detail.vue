@@ -8,7 +8,6 @@
       </view>
       <view class="delivery-info" v-if="order.deliveryType === 'delivery'">
         <text class="iconfont icon-delivery"></text>
-        <text>骑手正在配送中</text>
       </view>
     </view>
 
@@ -122,6 +121,7 @@ const order = ref({
   paymentMethod: '微信支付',
   remark: '不要辣'
 })
+
 
 // 联系商家
 const handleContact = () => {
@@ -354,11 +354,13 @@ const handleReorder = () => {
   right: 0;
   bottom: 0;
   background-color: #fff;
-  padding: 20rpx 30rpx;
+  padding: 20rpx;
   display: flex;
-  justify-content: flex-end;
-  gap: 20rpx;
+  justify-content: space-between;
   box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.05);
+  padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
+  padding-left: 100rpx;
+  padding-right: 100rpx;
 
   .btn {
     width: 200rpx;
@@ -367,10 +369,20 @@ const handleReorder = () => {
     text-align: center;
     border-radius: 40rpx;
     font-size: 28rpx;
+    border: 1px solid #ddd;
+    background-color: #fff;
+    color: #666;
+    padding: 0;
+    margin: 0;
+    
+    &::after {
+      border: none;
+    }
     
     &.primary {
       background-color: #1296db;
       color: #fff;
+      border: none;
     }
   }
 }

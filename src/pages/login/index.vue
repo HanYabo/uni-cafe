@@ -172,7 +172,7 @@ const handleWechatLogin = async () => {
 
     // 5. 延迟跳转，让用户看到成功提示
     setTimeout(() => {
-      wx.switchTab({
+      uni.switchTab({
         url: '/pages/index/index'
       })
     }, 1500)

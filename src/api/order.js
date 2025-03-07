@@ -9,3 +9,11 @@ export const createOrder = (data) => {
   })
 }
 
+// 获取用户历史订单列表
+export const getHistoryOrderAPI = (userId) => {
+  return request({
+    url: `/api/orders/history/${userId}`,
+    method: 'GET'
+  })
+}
+

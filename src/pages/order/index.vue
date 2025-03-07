@@ -104,7 +104,7 @@ const contentStyle = computed(() => {
 const shopInfo = {
   name: '郑州正弘城店',
   distance: '125.2km',
-  notice: '黑松露炒蛋可颂上新，浓郁黑松露酱包蛋糕...'
+  notice: '悠尼咖啡，美好的一天，从一杯好的咖啡开始！'
 }
 
 // 切换分类

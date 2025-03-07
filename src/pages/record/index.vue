@@ -1,45 +1,83 @@
 <script setup>
-import { ref } from 'vue';
+import { getHistoryOrderAPI } from '@/api/order';
+import { onShow } from '@dcloudio/uni-app';
+import { computed, ref } from 'vue';
 
 // 订单状态枚举
 const OrderStatus = {
-  WAITING_PAY: 0,    // 待支付
-  PROCESSING: 1,     // 制作中
-  COMPLETED: 2,      // 已完成
-  CANCELLED: 3       // 已取消
+  ALL: -1,          // 全部订单
+  WAITING_PAY: 0,   // 待支付
+  PROCESSING: 1,    // 已支付
+  COMPLETED: 2,     // 已完成
+  CANCELLED: 3      // 已取消
 }
 
 // 订单数据
-const orders = ref([
-  {
-    id: '202403150001',
-    status: OrderStatus.PROCESSING,
-    createTime: '2024-03-15 14:30',
-    totalPrice: 56,
-    items: [
-      { name: '拿铁咖啡', size: '大杯', price: 28, count: 1 },
-      { name: '美式咖啡', size: '中杯', price: 28, count: 1 }
-    ],
-    storeName: '星巴克咖啡(科技园店)'
-  },
-  {
-    id: '202403150002',
-    status: OrderStatus.COMPLETED,
-    createTime: '2024-03-15 10:20',
-    totalPrice: 84,
-    items: [
-      { name: '拿铁咖啡', size: '大杯', price: 28, count: 2 },
-      { name: '提拉米苏', size: '标准', price: 28, count: 1 }
-    ],
-    storeName: '星巴克咖啡(科技园店)'
+const orders = ref([])
+// 当前选中的状态
+const currentStatus = ref(OrderStatus.ALL)
+
+// 状态标签列表
+const statusTabs = [
+  { label: '全部订单', value: OrderStatus.ALL },
+  { label: '待支付', value: OrderStatus.WAITING_PAY },
+  { label: '进行中', value: OrderStatus.PROCESSING },
+  { label: '已完成', value: OrderStatus.COMPLETED }
+]
+
+// 切换状态
+const switchStatus = (status) => {
+  currentStatus.value = status
+}
+
+// 过滤后的订单列表
+const filteredOrders = computed(() => {
+  if (currentStatus.value === OrderStatus.ALL) {
+    return orders.value
   }
-])
+  return orders.value.filter(order => order.status === currentStatus.value)
+})
+
+// 获取订单列表
+const getHistoryOrderList = async () => {
+  // 重新获取用户信息，确保是最新的
+  const userInfo = uni.getStorageSync('userInfo')
+  try {
+    const res = await getHistoryOrderAPI(userInfo.userId)
+    if(res.code === 200) {
+      // 确保数据结构正确
+      orders.value = res.data.map(order => ({
+        orderId: order.orderId,
+        status: order.status,
+        createTime: order.createTime,
+        totalPrice: order.totalPrice,
+        items: order.items.map(item => ({
+          productName: item.productName,
+          specs: item.specs || [{ specValue: '' }],
+          quantity: item.quantity,
+          price: item.price || 0  // 确保有价格字段，默认为0
+        }))
+      }))
+    } else {
+      uni.showToast({
+        title: res.message,
+        icon: 'none'
+      })
+    }
+  } catch (error) {
+    console.error('获取订单列表失败：', error)
+    uni.showToast({
+      title: '获取订单列表失败',
+      icon: 'none'
+    })
+  }
+}
 
 // 获取订单状态文本
 const getStatusText = (status) => {
   switch(status) {
     case OrderStatus.WAITING_PAY: return '待支付';
-    case OrderStatus.PROCESSING: return '制作中';
+    case OrderStatus.PROCESSING: return '已支付';
     case OrderStatus.COMPLETED: return '已完成';
     case OrderStatus.CANCELLED: return '已取消';
     default: return '';
@@ -63,24 +101,51 @@ const goToDetail = (id) => {
     url: `/pages/record/detail?id=${id}`
   })
 }
+
+onShow(() => {
+  // 每次显示页面时重新获取用户信息
+  const userInfo = uni.getStorageSync('userInfo')
+  // 判断用户登陆状态 然后弹窗让用户选择去登录
+  if(!userInfo) {
+    uni.showModal({
+      title: '温馨提示',
+      content: '请先登录',
+      success: (res) => {
+        if (res.confirm) {
+          uni.navigateTo({
+            url: '/pages/login/index'
+          })
+        }
+      }
+    })
+  } else {
+    getHistoryOrderList()
+  }
+})
+
 </script>
 
 <template>
   <view class="record-container">
     <!-- 顶部标签栏 -->
     <view class="tab-bar">
-      <view class="tab-item active">全部订单</view>
-      <view class="tab-item">待支付</view>
-      <view class="tab-item">进行中</view>
-      <view class="tab-item">已完成</view>
+      <view 
+        v-for="tab in statusTabs" 
+        :key="tab.value"
+        class="tab-item"
+        :class="{ active: currentStatus === tab.value }"
+        @tap="switchStatus(tab.value)"
+      >
+        {{ tab.label }}
+      </view>
     </view>
 
     <!-- 订单列表 -->
     <scroll-view scroll-y class="order-list">
-      <view class="order-item" v-for="order in orders" :key="order.id">
+      <view class="order-item" v-for="(order, index) in filteredOrders" :key="index">
         <!-- 订单头部 -->
         <view class="order-header">
-          <view class="store-name">{{ order.storeName }}</view>
+          <view class="store-name">郑州正弘城店</view>
           <view class="order-status" :class="getStatusClass(order.status)">
             {{ getStatusText(order.status) }}
           </view>
@@ -91,25 +156,25 @@ const goToDetail = (id) => {
           <view class="product-list">
             <view class="product-item" v-for="(item, index) in order.items" :key="index">
               <view class="product-name">
-                {{ item.name }}
-                <text class="product-size">{{ item.size }}</text>
+                {{ item.productName }}
+                <text class="product-size">{{ item.specs[0].specValue }}</text>
               </view>
-              <view class="product-count">x{{ item.count }}</view>
+              <view class="product-count">x{{ item.quantity }}</view>
             </view>
           </view>
           
           <view class="order-total">
-            共{{ order.items.reduce((sum, item) => sum + item.count, 0) }}件商品
-            <text>合计 ¥{{ order.totalPrice }}</text>
+            共{{ order.items.reduce((sum, item) => sum + item.quantity, 0) }}件商品
+            <text>合计 ¥{{ order.items.reduce((sum, item) => sum + item.subtotal, 0).toFixed(2) }}</text>
           </view>
         </view>
 
         <!-- 订单底部 -->
         <view class="order-footer">
-          <view class="order-time">{{ order.createTime }}</view>
+          <view class="order-time">{{ order.createdAt }}</view>
           <view class="order-actions">
             <view class="btn btn-outline">再来一单</view>
-            <view class="btn btn-primary" @tap="goToDetail(order.id)">查看详情</view>
+            <view class="btn btn-primary" @tap="goToDetail(order.orderId)">查看详情</view>
           </view>
         </view>
       </view>
