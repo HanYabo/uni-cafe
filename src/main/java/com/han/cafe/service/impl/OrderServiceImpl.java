@@ -12,6 +12,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.han.cafe.entity.Order;
 import com.han.cafe.entity.OrderItem;
 import com.han.cafe.entity.OrderItemSpec;
@@ -156,6 +157,151 @@ public class OrderServiceImpl implements OrderService {
         return getOrder(orderId);
     }
     
+    @Override
+    public List<OrderResponse> getOrderHistory(Integer userId) {
+        log.info("查询用户历史订单列表，userId: {}", userId);
+        
+        // 构建查询条件
+        LambdaQueryWrapper<Order> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Order::getUserId, userId)
+                   .orderByDesc(Order::getCreatedAt);  // 按创建时间倒序排列
+        
+        // 查询订单列表
+        List<Order> orders = orderMapper.selectList(queryWrapper);
+        log.info("查询到{}条订单记录", orders.size());
+        
+        // 转换为响应对象
+        return orders.stream().map(order -> {
+            // 查询订单项
+            List<OrderItem> items = orderItemMapper.selectByOrderId(order.getOrderId());
+            
+            // 查询每个订单项的规格
+            items.forEach(item -> {
+                List<OrderItemSpec> specs = orderItemSpecMapper.selectByItemId(item.getItemId());
+                item.setSpecs(specs);
+            });
+            
+            // 构建响应对象
+            return buildOrderResponse(order, items);
+        }).collect(Collectors.toList());
+    }
+    
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public OrderResponse cancelOrder(String orderId, Integer userId) {
+        log.info("开始取消订单，orderId: {}, userId: {}", orderId, userId);
+        
+        // 查询订单
+        Order order = orderMapper.selectById(orderId);
+        if (order == null) {
+            throw new BusinessException("订单不存在");
+        }
+        
+        // 验证订单所属权
+        if (!order.getUserId().equals(userId)) {
+            log.error("用户 {} 尝试取消不属于他的订单 {}", userId, orderId);
+            throw new BusinessException("无权操作此订单");
+        }
+        
+        // 验证订单状态
+        if (order.getStatus() != 0) {
+            String statusText = getStatusText(order.getStatus());
+            log.error("订单 {} 状态为 {}，无法取消", orderId, statusText);
+            throw new BusinessException("当前订单状态为" + statusText + "，无法取消");
+        }
+        
+        // 更新订单状态为已取消
+        order.setStatus(3);  // 3-已取消
+        order.setUpdatedAt(LocalDateTime.now());
+        orderMapper.updateById(order);
+        
+        log.info("订单 {} 已成功取消", orderId);
+        
+        return getOrder(orderId);
+    }
+    
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteOrder(String orderId, Integer userId) {
+        log.info("开始删除订单，orderId: {}, userId: {}", orderId, userId);
+        
+        // 查询订单
+        Order order = orderMapper.selectById(orderId);
+        if (order == null) {
+            throw new BusinessException("订单不存在");
+        }
+        
+        // 验证订单所属权
+        if (!order.getUserId().equals(userId)) {
+            log.error("用户 {} 尝试删除不属于他的订单 {}", userId, orderId);
+            throw new BusinessException("无权操作此订单");
+        }
+        
+        // 只允许删除已完成或已取消的订单
+        if (order.getStatus() != 2 && order.getStatus() != 3) {
+            String statusText = getStatusText(order.getStatus());
+            log.error("订单 {} 状态为 {}，无法删除", orderId, statusText);
+            throw new BusinessException("只能删除已完成或已取消的订单");
+        }
+        
+        try {
+            // 1. 查询并删除订单项规格
+            List<OrderItem> orderItems = orderItemMapper.selectByOrderId(orderId);
+            for (OrderItem item : orderItems) {
+                // 删除订单项规格
+                LambdaQueryWrapper<OrderItemSpec> specWrapper = new LambdaQueryWrapper<>();
+                specWrapper.eq(OrderItemSpec::getItemId, item.getItemId());
+                orderItemSpecMapper.delete(specWrapper);
+            }
+            
+            // 2. 删除订单项
+            LambdaQueryWrapper<OrderItem> itemWrapper = new LambdaQueryWrapper<>();
+            itemWrapper.eq(OrderItem::getOrderId, orderId);
+            orderItemMapper.delete(itemWrapper);
+            
+            // 3. 删除订单主表
+            orderMapper.deleteById(orderId);
+            
+            log.info("订单 {} 及其关联数据已成功删除", orderId);
+            
+        } catch (Exception e) {
+            log.error("删除订单时发生错误", e);
+            throw new BusinessException("删除订单失败：" + e.getMessage());
+        }
+    }
+    
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void cancelTimeoutOrders() {
+        // 设置超时时间为10分钟
+        LocalDateTime timeoutTime = LocalDateTime.now().minusMinutes(10);
+        
+        // 查询超时的待支付订单
+        LambdaQueryWrapper<Order> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Order::getStatus, 0)  // 待支付状态
+                   .le(Order::getCreatedAt, timeoutTime);  // 创建时间小于等于10分钟前
+        
+        List<Order> timeoutOrders = orderMapper.selectList(queryWrapper);
+        log.info("找到{}个超时待支付订单", timeoutOrders.size());
+        
+        // 批量更新订单状态
+        for (Order order : timeoutOrders) {
+            try {
+                log.info("开始处理超时订单: {}", order.getOrderId());
+                
+                // 更新订单状态为已取消
+                order.setStatus(3);  // 3-已取消
+                order.setUpdatedAt(LocalDateTime.now());
+                orderMapper.updateById(order);
+                
+                log.info("订单 {} 已自动取消", order.getOrderId());
+            } catch (Exception e) {
+                log.error("处理超时订单 {} 时发生错误: {}", order.getOrderId(), e.getMessage(), e);
+                // 继续处理下一个订单
+            }
+        }
+    }
+    
     private String generateOrderId(Integer userId) {
         String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         String userIdSuffix = String.format("%04d", userId % 10000);
@@ -171,6 +317,12 @@ public class OrderServiceImpl implements OrderService {
         List<OrderItemResponse> itemResponses = items.stream().map(item -> {
             OrderItemResponse itemResponse = new OrderItemResponse();
             BeanUtils.copyProperties(item, itemResponse);
+            
+            // 查询商品信息获取主图
+            Product product = productMapper.selectById(item.getProductId());
+            if (product != null) {
+                itemResponse.setMainImage(product.getMainImage());
+            }
             
             List<OrderItemSpecResponse> specResponses = item.getSpecs().stream().map(spec -> {
                 OrderItemSpecResponse specResponse = new OrderItemSpecResponse();

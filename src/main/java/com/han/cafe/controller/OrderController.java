@@ -1,5 +1,7 @@
 package com.han.cafe.controller;
 
+import java.util.List;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -36,7 +38,8 @@ public class OrderController {
     
     @Resource
     private HttpServletRequest request;
-    
+
+    // 创建订单
     @PostMapping
     public ApiResponse<OrderResponse> createOrder(@RequestBody CreateOrderRequest request) {
         String token = this.request.getHeader("Authorization");
@@ -121,18 +124,160 @@ public class OrderController {
             throw new BusinessException("Token验证失败：" + e.getMessage());
         }
     }
-    
+
+    // 根据OrderId获取单个订单详情
     @GetMapping("/{orderId}")
     public ApiResponse<OrderResponse> getOrder(@PathVariable String orderId) {
         OrderResponse order = orderService.getOrder(orderId);
         return ApiResponse.success(order);
     }
-    
+
+    // 实现模拟支付功能
     @PostMapping("/{orderId}/pay")
     public ApiResponse<OrderResponse> payOrder(
             @PathVariable String orderId,
-            @RequestParam Integer payType) {
+            @RequestParam(defaultValue = "1") Integer payType) {
         OrderResponse order = orderService.payOrder(orderId, payType);
         return ApiResponse.success(order);
+    }
+    
+    /**
+     * 取消订单
+     */
+    @PostMapping("/{orderId}/cancel")
+    public ApiResponse<OrderResponse> cancelOrder(@PathVariable String orderId) {
+        String token = this.request.getHeader("Authorization");
+        if (token == null) {
+            throw new BusinessException("用户未登录");
+        }
+        
+        try {
+            // 从token中获取用户标识
+            String userIdentifier = jwtTokenUtil.getUsernameFromToken(token);
+            log.info("从token中解析出的用户标识: {}", userIdentifier);
+            
+            // 查找当前登录用户
+            User currentUser = null;
+            
+            // 尝试通过手机号查找
+            currentUser = userMapper.selectByMobile(userIdentifier);
+            
+            // 如果没找到，尝试通过openid查找
+            if (currentUser == null) {
+                currentUser = userMapper.selectByWechatOpenid(userIdentifier);
+            }
+            
+            // 如果还没找到，尝试通过unionid查找
+            if (currentUser == null) {
+                currentUser = userMapper.selectByWechatUnionid(userIdentifier);
+            }
+            
+            if (currentUser == null) {
+                throw new BusinessException("用户未登录或登录已过期");
+            }
+            
+            // 取消订单
+            OrderResponse order = orderService.cancelOrder(orderId, currentUser.getUserId());
+            return ApiResponse.success(order);
+            
+        } catch (Exception e) {
+            log.error("取消订单时发生错误: {}", e.getMessage(), e);
+            throw new BusinessException("取消订单失败：" + e.getMessage());
+        }
+    }
+    
+    // 根据userId查询用户历史订单list
+    @GetMapping("/history/{userId}")
+    public ApiResponse<List<OrderResponse>> getOrderHistory(@PathVariable Integer userId) {
+        // 验证当前登录用户是否有权限查看该用户的订单
+        String token = this.request.getHeader("Authorization");
+        if (token == null) {
+            throw new BusinessException("用户未登录");
+        }
+        
+        try {
+            // 从token中获取用户标识
+            String userIdentifier = jwtTokenUtil.getUsernameFromToken(token);
+            log.info("从token中解析出的用户标识: {}", userIdentifier);
+            
+            // 查找当前登录用户
+            User currentUser = null;
+            
+            // 尝试通过手机号查找
+            currentUser = userMapper.selectByMobile(userIdentifier);
+            
+            // 如果没找到，尝试通过openid查找
+            if (currentUser == null) {
+                currentUser = userMapper.selectByWechatOpenid(userIdentifier);
+            }
+            
+            // 如果还没找到，尝试通过unionid查找
+            if (currentUser == null) {
+                currentUser = userMapper.selectByWechatUnionid(userIdentifier);
+            }
+            
+            if (currentUser == null) {
+                throw new BusinessException("用户未登录或登录已过期");
+            }
+            
+            // 验证权限（只能查看自己的订单）
+            if (!currentUser.getUserId().equals(userId)) {
+                throw new BusinessException("无权查看其他用户的订单");
+            }
+            
+            // 获取订单列表
+            List<OrderResponse> orders = orderService.getOrderHistory(userId);
+            return ApiResponse.success(orders);
+            
+        } catch (Exception e) {
+            log.error("查询订单历史时发生错误: {}", e.getMessage(), e);
+            throw new BusinessException("查询订单失败：" + e.getMessage());
+        }
+    }
+    
+    /**
+     * 删除订单
+     */
+    @PostMapping("/{orderId}/delete")
+    public ApiResponse<Void> deleteOrder(@PathVariable String orderId) {
+        String token = this.request.getHeader("Authorization");
+        if (token == null) {
+            throw new BusinessException("用户未登录");
+        }
+        
+        try {
+            // 从token中获取用户标识
+            String userIdentifier = jwtTokenUtil.getUsernameFromToken(token);
+            log.info("从token中解析出的用户标识: {}", userIdentifier);
+            
+            // 查找当前登录用户
+            User currentUser = null;
+            
+            // 尝试通过手机号查找
+            currentUser = userMapper.selectByMobile(userIdentifier);
+            
+            // 如果没找到，尝试通过openid查找
+            if (currentUser == null) {
+                currentUser = userMapper.selectByWechatOpenid(userIdentifier);
+            }
+            
+            // 如果还没找到，尝试通过unionid查找
+            if (currentUser == null) {
+                currentUser = userMapper.selectByWechatUnionid(userIdentifier);
+            }
+            
+            if (currentUser == null) {
+                throw new BusinessException("用户未登录或登录已过期");
+            }
+            
+            // 删除订单
+            orderService.deleteOrder(orderId, currentUser.getUserId());
+            ApiResponse apiResponse = new ApiResponse(200, "删除订单成功", null);
+            return apiResponse;
+
+        } catch (Exception e) {
+            log.error("删除订单时发生错误: {}", e.getMessage(), e);
+            throw new BusinessException("删除订单失败：" + e.getMessage());
+        }
     }
 } 
