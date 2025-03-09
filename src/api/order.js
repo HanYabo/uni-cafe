@@ -33,6 +33,14 @@ export const cancelOrderAPI = (orderId) => {
   })
 }
 
+// 用户删除订单
+export const deleteOrderAPI = (orderId) => {
+  return request({
+    url: `/api/orders/${orderId}/delete`,
+    method: 'POST'
+  })
+}
+
 // 通过订单id获取订单详情
 export const getOrderDetailAPI = (orderId) => {
   return request({

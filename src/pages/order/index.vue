@@ -6,11 +6,21 @@ import { computed, onMounted, reactive, ref } from 'vue'
 // 分类数据
 const categories = ref(null)
 
+const baseUrl = 'http://localhost:9000'
+
 
 onShow(() => {
   getCategoryWithProducts().then(res => {
     categories.value = res.data
   })
+  // TODO: 待完成
+  // nextTick(() => {
+  //   // 获取购物车数据
+  //   const cartData = uni.getStorageSync('cartItems')
+  //   if (cartData) {
+  //     cartItems.value.items = cartData
+  //   }
+  // })
 })
 
 
@@ -539,7 +549,7 @@ const handleCheckout = () => {
         >
         <view class="section-title">{{ categories[currentCategory].name }}</view>
           <view class="product-item" v-for="product in categories[currentCategory].products" :key="product.productId" @tap="openProductDetail(product)">
-          <image :src="product.mainImage" class="product-image" mode="aspectFill" />
+          <image :src="baseUrl.concat(product.mainImage)" class="product-image" mode="aspectFill" />
           <view class="product-info">
             <text class="product-name">{{ product.name }}</text>
             <text class="product-desc">{{ product.description }}</text>
@@ -578,7 +588,6 @@ const handleCheckout = () => {
       <view class="checkout-btn" @tap="handleCheckout">结算</view>
     </view>
 
-    // TODO :动态数据
     <!-- 购物袋弹出面板 -->
     <view class="cart-panel-container" :class="{ visible: isCartPanelVisible }" @tap="closeCartPanel">
       <view class="cart-panel" @tap.stop>
@@ -602,7 +611,7 @@ const handleCheckout = () => {
                 <text class="check-icon" v-if="item.selected">✓</text>
               </view>
             </view>
-            <image class="product-image" :src="item.image" mode="aspectFill" />
+            <image class="product-image" :src="baseUrl.concat(item.image)" mode="aspectFill" />
             <view class="product-info">
               <text class="product-name">{{ item.name }}</text>
               <text class="product-desc">{{ item.desc }}</text>
@@ -633,7 +642,7 @@ const handleCheckout = () => {
       <view class="product-detail" @tap.stop>
         <view class="detail-header">
           <view class="product-basic">
-            <image :src="currentProduct?.image" class="product-image" mode="aspectFill" v-if="currentProduct" />
+            <image :src="baseUrl.concat(currentProduct.mainImage)" class="product-image" mode="aspectFill" v-if="currentProduct" />
             <view class="info">
               <text class="name">{{ currentProduct?.name }}</text>
             </view>

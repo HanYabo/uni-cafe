@@ -1,13 +1,15 @@
 <template>
   <view class="order-detail">
     <!-- 订单状态 -->
-    <view class="status-card">
+    <view class="status-card" :class="{
+      'status-waiting': order.status === 0,
+      'status-processing': order.status === 1,
+      'status-completed': order.status === 2,
+      'status-cancelled': order.status === 3
+    }">
       <view class="status-header">
-        <text class="status-text">订单已完成</text>
-        <text class="status-desc">感谢您的惠顾</text>
-      </view>
-      <view class="delivery-info" v-if="order.deliveryType === 'delivery'">
-        <text class="iconfont icon-delivery"></text>
+        <text class="status-text">{{ getStatusText(order.status) }}</text>
+        <text class="status-desc">{{ getStatusDesc(order.status) }}</text>
       </view>
     </view>
 
@@ -18,30 +20,26 @@
         <text>商品信息</text>
       </view>
       <view class="goods-list">
-        <view class="goods-item" v-for="(item, index) in order.goods" :key="index">
-          <image class="goods-img" :src="item.image" mode="aspectFill" />
+        <view class="goods-item" v-for="(item, index) in order.items" :key="index">
+          <image class="goods-img" :src="baseUrl.concat(item.mainImage)" mode="aspectFill" />
           <view class="goods-info">
-            <text class="goods-name">{{ item.name }}</text>
-            <text class="goods-spec">{{ item.spec }}</text>
+            <text class="goods-name">{{ item.productName }}</text>
+            <text class="goods-spec" v-for="(spec, index) in item.specs" :key="index">{{ spec.specValue }}</text>
           </view>
           <view class="goods-price">
-            <text class="price">¥{{ item.price }}</text>
-            <text class="count">x{{ item.count }}</text>
+            <text class="price">¥{{ item.subtotal }}</text>
+            <text class="count">x{{ item.quantity }}</text>
           </view>
         </view>
       </view>
       <view class="price-detail">
         <view class="price-item">
           <text>商品总价</text>
-          <text>¥{{ order.totalPrice }}</text>
-        </view>
-        <view class="price-item">
-          <text>配送费</text>
-          <text>¥{{ order.deliveryFee }}</text>
+          <text>¥{{ order.totalAmount }}</text>
         </view>
         <view class="price-item total">
           <text>实付金额</text>
-          <text class="total-price">¥{{ order.actualPrice }}</text>
+          <text class="total-price">¥{{ order.payAmount }}</text>
         </view>
       </view>
     </view>
@@ -55,18 +53,18 @@
       <view class="order-info">
         <view class="info-item">
           <text class="label">订单编号：</text>
-          <text class="value">{{ order.orderNo }}</text>
+          <text class="value">{{ order.orderId }}</text>
         </view>
         <view class="info-item">
           <text class="label">下单时间：</text>
-          <text class="value">{{ order.createTime }}</text>
+          <text class="value">{{ order.status === 0 ? '--' : formatTime(order.createdAt) }}</text>
         </view>
         <view class="info-item">
           <text class="label">支付方式：</text>
-          <text class="value">{{ order.paymentMethod }}</text>
+          <text class="value">{{ order.payTime === null ? '未支付' : order.payType === 1 ? '微信支付' : '支付宝支付' }}</text>
         </view>
         <view class="info-item">
-          <text class="label">备注：</text>
+          <text class="label">用户备注：</text>
           <text class="value">{{ order.remark || '无' }}</text>
         </view>
       </view>
@@ -74,68 +72,119 @@
 
     <!-- 底部按钮 -->
     <view class="bottom-btns">
-      <button class="btn" @tap="handleContact">联系商家</button>
-      <button class="btn primary" @tap="handleReorder">再来一单</button>
+      <button 
+        class="btn" 
+        @tap="order.status === 0 ? handleCancel() : handleContact()"
+      >
+        {{ order.status === 0 ? '取消订单' : '联系商家' }}
+      </button>
+      <button 
+        class="btn primary" 
+        :class="{ 'btn-pay': order.status === 0 }"
+        @tap="order.status === 0 ? handlePay() : handleReorder()"
+      >
+        {{ order.status === 0 ? '立即支付' : '再来一单' }}
+      </button>
     </view>
   </view>
 </template>
 
 <script setup>
+import { getOrderDetailAPI } from '@/api/order'
+import { formatTime } from '@/utils/format'
+import { onLoad } from '@dcloudio/uni-app'
 import { ref } from 'vue'
 
+const baseUrl = 'http://localhost:9000'
+
 // 模拟订单数据
-const order = ref({
-  status: 'completed',
-  deliveryType: 'delivery',
-  address: {
-    name: '张三',
-    phone: '13800138000',
-    fullAddress: '广东省广州市天河区天河路123号'
-  },
-  store: {
-    name: '天河店',
-    address: '广东省广州市天河区天河路123号',
-    phone: '020-12345678'
-  },
-  goods: [
-    {
-      image: '/static/images/goods1.jpg',
-      name: '香煎牛排',
-      spec: '七分熟',
-      price: 88,
-      count: 1
-    },
-    {
-      image: '/static/images/goods2.jpg',
-      name: '凯撒沙拉',
-      spec: '标准份',
-      price: 28,
-      count: 1
-    }
-  ],
-  totalPrice: 116,
-  deliveryFee: 5,
-  actualPrice: 121,
-  orderNo: 'DD20230615001',
-  createTime: '2023-06-15 12:30:45',
-  paymentMethod: '微信支付',
-  remark: '不要辣'
-})
+const order = ref({})
+
+// 定义获取订单详情方法
+const getOrderDetail = async (orderId) => {
+  const res = await getOrderDetailAPI(orderId)
+  if(res.code === 200) {
+    order.value = res.data
+  }else {
+    uni.showToast({
+      title: '订单详情获取失败',
+      icon: 'error',
+      mask: true
+    })
+  }
+}
 
 
 // 联系商家
 const handleContact = () => {
-  wx.makePhoneCall({
-    phoneNumber: order.value.store.phone
+  uni.showToast({
+    title: '该功能开发中',
+    icon: 'none',
+    mask: true
   })
 }
 
 // 再来一单
 const handleReorder = () => {
-  wx.switchTab({
-    url: '/pages/index/index'
+  uni.showToast({
+    title: '该功能开发中',
+    icon: 'none',
+    mask: true
   })
 }
+
+// 立即支付
+const handlePay = () => {
+  // TODO: 处理支付逻辑
+  uni.showToast({
+    title: '正在前往支付...',
+    icon: 'none'
+  })
+}
+
+// 取消订单
+const handleCancel = () => {
+  uni.showModal({
+    title: '提示',
+    content: '确定要取消该订单吗？',
+    success: async (res) => {
+      if (res.confirm) {
+        // TODO: 调用取消订单API
+        uni.showToast({
+          title: '订单已取消',
+          icon: 'success'
+        })
+      }
+    }
+  })
+}
+
+// 获取状态文本
+const getStatusText = (status) => {
+  const statusMap = {
+    0: '订单待支付',
+    1: '订单已支付',
+    2: '订单已完成',
+    3: '订单已取消'
+  }
+  return statusMap[status] || '未知状态'
+}
+
+// 获取状态描述
+const getStatusDesc = (status) => {
+  const descMap = {
+    0: '请尽快支付订单',
+    1: '请耐心等待制作',
+    2: '感谢您的惠顾',
+    3: '期待您下次光临'
+  }
+  return descMap[status] || ''
+}
+
+// 接收url传递的orderId参数
+onLoad((options) => {
+  getOrderDetail(options.orderId)
+})
 </script>
 
 <style lang="scss" scoped>
@@ -147,11 +196,30 @@ const handleReorder = () => {
 }
 
 .status-card {
-  background: linear-gradient(135deg, #1296db, #0f85c2);
-  color: #fff;
   padding: 40rpx 30rpx;
   border-radius: 16rpx;
   margin-bottom: 24rpx;
+  color: #fff;
+  
+  // 待支付状态
+  &.status-waiting {
+    background: linear-gradient(135deg, #ff6b00, #ff8533);
+  }
+  
+  // 已支付状态
+  &.status-processing {
+    background: linear-gradient(135deg, #1296db, #0f85c2);
+  }
+  
+  // 已完成状态
+  &.status-completed {
+    background: linear-gradient(135deg, #52c41a, #3eb213);
+  }
+  
+  // 已取消状态
+  &.status-cancelled {
+    background: linear-gradient(135deg, #999999, #666666);
+  }
 
   .status-header {
     margin-bottom: 20rpx;
@@ -383,6 +451,10 @@ const handleReorder = () => {
       background-color: #1296db;
       color: #fff;
       border: none;
+    }
+
+    &.btn-pay {
+      background-color: #ff6b00;
     }
   }
 }

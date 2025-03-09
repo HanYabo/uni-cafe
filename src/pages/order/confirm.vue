@@ -1,6 +1,8 @@
 <script setup>
-import { createOrder, payOrderAPI, cancelOrderAPI } from '@/api/order';
+import { createOrder, payOrderAPI } from '@/api/order';
 import { computed, onMounted, ref } from 'vue';
+
+const baseUrl = 'http://localhost:9000';  // 本地后端服务地址
 
 const orderInfo = ref({
   products: [],
@@ -155,6 +157,10 @@ const payOrder = async (orderId) => {
       title: '支付成功',
       icon: 'success',
     })
+    // 清空购物车数据
+    uni.removeStorageSync('orderItems');
+    uni.removeStorageSync('orderData');
+    // 1.5秒后跳转到订单页面
     setTimeout(() => {
       uni.switchTab({
         url: '/pages/record/index'
@@ -168,23 +174,17 @@ const payOrder = async (orderId) => {
   }
 }
 
-// 取消订单
-const cancelOrder = async (orderId) => {
-  const res = await cancelOrderAPI(orderId);
-  if (res.code === 200) {
-    uni.showToast({
-      title: '取消订单成功',
-      icon: 'success',
-    })
-    setTimeout(() => {
-      uni.navigateBack();
-    }, 1500)
-  }else {
-    uni.showToast({
-      title: res.message,
-      icon: 'error',
-    })
-  }
+// 取消支付，订单状态为待支付
+const cancelOrder = () => {
+  uni.showToast({
+    title: '取消支付',
+    icon: 'none',
+    mask: true
+  })
+  // 直接返回到订单详情
+  uni.switchTab({
+    url: '/pages/record/index'
+  })
 }
 
 // 提交订单
@@ -277,7 +277,7 @@ const submitOrder = async () => {
       <!-- 商品列表 -->
       <view class="product-list">
         <view class="product-item" v-for="(item, index) in orderInfo.products" :key="index">
-          <image :src="item.image" class="product-image" mode="aspectFill" />
+          <image :src="baseUrl.concat(item.image)" class="product-image" mode="aspectFill" />
           <view class="product-info">
             <text class="product-name">{{ item.name }}</text>
             <text class="product-specs">{{ item.desc }}</text>

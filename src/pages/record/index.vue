@@ -1,8 +1,8 @@
 <script setup>
-import { getHistoryOrderAPI } from '@/api/order';
+import { cancelOrderAPI, deleteOrderAPI, getHistoryOrderAPI } from '@/api/order';
 import { formatTime } from '@/utils/format';
 import { onShow } from '@dcloudio/uni-app';
-import { computed, onUnmounted, ref } from 'vue';
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 
 // 订单状态枚举
 const OrderStatus = {
@@ -15,6 +15,20 @@ const OrderStatus = {
 
 // 订单数据
 const orders = ref([])
+
+// 添加侦听器，深度监听orders的变化
+watch(orders, (newOrders) => {
+  // 检查是否有订单状态发生变化
+  const hasStatusChange = newOrders.some((order, index) => {
+    const oldOrder = orders.value[index]
+    return oldOrder && order.status !== oldOrder.status
+  })
+  
+  // 如果有状态变化，重新获取订单列表
+  if (hasStatusChange) {
+    getHistoryOrderList()
+  }
+}, { deep: true })
 
 // 倒计时Map
 const countdownMap = ref(new Map())
@@ -57,6 +71,19 @@ const setupCountdown = (orderId, createdAt) => {
       if (remaining <= 0) {
         clearInterval(timer)
         countdownMap.value.delete(orderId)
+        // 更新订单状态为已取消
+        const orderIndex = orders.value.findIndex(order => order.orderId === orderId)
+        if (orderIndex !== -1) {
+          orders.value[orderIndex] = {
+            ...orders.value[orderIndex],
+            status: OrderStatus.CANCELLED
+          }
+        }
+        // 显示提示
+        uni.showToast({
+          title: '订单已超时自动取消',
+          icon: 'none'
+        })
       } else {
         const minutes = Math.floor(remaining / 60000)
         const seconds = Math.floor((remaining % 60000) / 1000)
@@ -86,10 +113,17 @@ const getHistoryOrderList = async () => {
       // 确保数据结构正确
       orders.value = res.data.map(order => ({
         orderId: order.orderId,
+        userId: order.userId,
+        couponId: order.couponId,
         status: order.status,
         createdAt: order.createdAt,
+        updatedAt: order.updatedAt,
+        payTime: order.payTime,
+        payType: order.payType,
+        remark: order.remark,
         totalAmount: order.totalAmount,
-        actualAmount: order.actualAmount,
+        discountAmount: order.discountAmount,
+        payAmount: order.payAmount,
         items: order.items.map(item => ({
           productName: item.productName,
           specs: Array.isArray(item.specs) ? item.specs : [],
@@ -143,10 +177,84 @@ const getStatusClass = (status) => {
   }
 }
 
+// 取消订单或删除订单操作
+const handleCancelOrDelete = (orderId, status) => {
+  if(status === OrderStatus.WAITING_PAY) {
+    uni.showModal({
+      title: '温馨提示',
+      content: '确定要取消订单吗？',
+      success: async (res) => {
+        if(res.confirm) {
+          const result = await cancelOrderAPI(orderId)
+          if(result.code === 200) {
+            uni.showToast({
+              title: '订单取消成功',
+              icon: 'success'
+            })
+            // 取消成功后，等待DOM更新后重新获取订单列表
+            await nextTick()
+            getHistoryOrderList()
+          }else {
+            uni.showToast({
+              title: '取消订单失败', 
+              icon: 'error'
+            })
+          }
+        }
+      }
+    })
+  } else if(status === OrderStatus.PROCESSING) {
+    uni.showToast({
+      title: '订单已支付，请等待订单完成',
+      icon: 'none'
+    })
+  } else {
+    uni.showModal({
+      title: '温馨提示',
+      content: '确定要删除订单吗？',
+      success: async (res) => {
+        if(res.confirm) {
+          const result = await deleteOrderAPI(orderId)
+          if(result.code === 200) {
+            uni.showToast({
+              title: '订单删除成功',
+              icon: 'success'
+            })
+            // 删除成功后，等待DOM更新后重新获取订单列表
+            await nextTick()
+            getHistoryOrderList()
+          }else {
+            uni.showToast({
+              title: '订单删除失败',
+              icon: 'error'
+            }) 
+          }
+        }
+      }
+    })
+  }
+}
+
+// 立即支付或者再来一单订单操作
+const handlePayOrAgain = (orderId, status) => {
+  if(status === OrderStatus.WAITING_PAY) {
+    // 执行支付操作
+    uni.showModal({
+      title: '温馨提示',
+      content: '确定要支付订单吗？',
+      success: (res) => {
+        if(res.confirm) {
+          // TODO: 执行支付操作
+        }
+      }
+    })
+  }
+}
+
 // 跳转订单详情
-const goToDetail = (id) => {
+const goToDetail = (orderId) => {
   uni.navigateTo({
-    url: `/pages/record/detail?id=${id}`
+    url: `/pages/record/detail?orderId=${orderId}`
   })
 }
 
@@ -214,7 +322,7 @@ onShow(() => {
           
           <view class="order-total">
             共{{ order.items.reduce((sum, item) => sum + item.quantity, 0) }}件商品
-            <text>合计 ¥{{ order.actualAmount?.toFixed(2) }}</text>
+            <text>合计 ¥{{ order.payAmount }}</text>
           </view>
         </view>
 
@@ -222,13 +330,10 @@ onShow(() => {
         <view class="order-footer">
           <view class="order-time">{{ formatTime(order.createdAt) }}</view>
           <view class="order-actions">
-            <view class="btn btn-outline">
+            <view class="btn btn-outline" @tap="handleCancelOrDelete(order.orderId, order.status)">
               {{ order.status === OrderStatus.WAITING_PAY ? '取消订单' : '删除订单' }}
             </view>
-            <view 
-              class="btn btn-primary"
-              :class="{ 'btn-pay': order.status === OrderStatus.WAITING_PAY }"
-            >
+            <view class="btn btn-primary" :class="{ 'btn-pay': order.status === OrderStatus.WAITING_PAY }" @tap="handlePayOrAgain(order.orderId, order.status)">
               {{ order.status === OrderStatus.WAITING_PAY ? '立即支付' : '再来一单' }}
             </view>
           </view>
