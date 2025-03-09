@@ -13,12 +13,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.han.cafe.entity.Coupon;
 import com.han.cafe.entity.Order;
 import com.han.cafe.entity.OrderItem;
 import com.han.cafe.entity.OrderItemSpec;
 import com.han.cafe.entity.Product;
 import com.han.cafe.entity.Spec;
 import com.han.cafe.entity.SpecValue;
+import com.han.cafe.entity.UserCoupon;
 import com.han.cafe.exception.BusinessException;
 import com.han.cafe.mapper.OrderItemMapper;
 import com.han.cafe.mapper.OrderItemSpecMapper;
@@ -26,6 +28,8 @@ import com.han.cafe.mapper.OrderMapper;
 import com.han.cafe.mapper.ProductMapper;
 import com.han.cafe.mapper.SpecMapper;
 import com.han.cafe.mapper.SpecValueMapper;
+import com.han.cafe.mapper.UserCouponMapper;
+import com.han.cafe.service.CouponService;
 import com.han.cafe.service.OrderService;
 import com.han.cafe.vo.CreateOrderRequest;
 import com.han.cafe.vo.OrderItemRequest;
@@ -52,6 +56,10 @@ public class OrderServiceImpl implements OrderService {
     private OrderItemMapper orderItemMapper;
     @Resource
     private OrderItemSpecMapper orderItemSpecMapper;
+    @Resource
+    private CouponService couponService;
+    @Resource
+    private UserCouponMapper userCouponMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -60,6 +68,7 @@ public class OrderServiceImpl implements OrderService {
         BigDecimal totalAmount = BigDecimal.ZERO;
         List<OrderItem> orderItems = new ArrayList<>();
         
+        // 计算订单总金额
         for (OrderItemRequest itemRequest : request.getItems()) {
             Product product = productMapper.selectById(itemRequest.getProductId());
             if (product == null || product.getStatus() != 1) {
@@ -102,16 +111,43 @@ public class OrderServiceImpl implements OrderService {
             totalAmount = totalAmount.add(orderItem.getSubtotal());
         }
         
+        // 处理优惠券
+        BigDecimal discountAmount = BigDecimal.ZERO;
+        BigDecimal payAmount = totalAmount;
+        
+        if (request.getCouponId() != null) {
+            // 检查优惠券是否可用
+            Coupon coupon = couponService.checkCoupon(userId, request.getCouponId(), totalAmount);
+            if (coupon != null) {
+                // 计算优惠金额
+                if (coupon.getType() == 1) {  // 满减券
+                    discountAmount = coupon.getAmount();
+                } else if (coupon.getType() == 2) {  // 折扣券
+                    BigDecimal discount = new BigDecimal(coupon.getDiscount()).divide(new BigDecimal(100));
+                    discountAmount = totalAmount.multiply(BigDecimal.ONE.subtract(discount));
+                    // 检查是否超过最大优惠金额
+                    if (coupon.getMaxDiscount() != null && discountAmount.compareTo(coupon.getMaxDiscount()) > 0) {
+                        discountAmount = coupon.getMaxDiscount();
+                    }
+                }
+                payAmount = totalAmount.subtract(discountAmount);
+            }
+        }
+        
+        // 创建订单
         Order order = new Order();
         order.setOrderId(orderId);
         order.setUserId(userId);
+        order.setCouponId(request.getCouponId());
         order.setTotalAmount(totalAmount);
-        order.setActualAmount(totalAmount);
+        order.setDiscountAmount(discountAmount);
+        order.setPayAmount(payAmount);
         order.setStatus(0);
         order.setRemark(request.getRemark());
         
         orderMapper.insert(order);
         
+        // 保存订单项
         for (OrderItem orderItem : orderItems) {
             orderItemMapper.insert(orderItem);
             for (OrderItemSpec spec : orderItem.getSpecs()) {
@@ -215,6 +251,32 @@ public class OrderServiceImpl implements OrderService {
         order.setUpdatedAt(LocalDateTime.now());
         orderMapper.updateById(order);
         
+        // 如果订单使用了优惠券，退回优惠券
+        if (order.getCouponId() != null) {
+            try {
+                // 查找用户优惠券记录
+                LambdaQueryWrapper<UserCoupon> queryWrapper = new LambdaQueryWrapper<>();
+                queryWrapper.eq(UserCoupon::getUserId, userId)
+                          .eq(UserCoupon::getCouponId, order.getCouponId())
+                          .eq(UserCoupon::getOrderId, orderId);
+                
+                UserCoupon userCoupon = userCouponMapper.selectOne(queryWrapper);
+                if (userCoupon != null) {
+                    // 重置优惠券状态为未使用
+                    userCoupon.setStatus(0);  // 0-未使用
+                    userCoupon.setOrderId(null);
+                    userCoupon.setUsedTime(null);
+                    userCoupon.setUpdatedAt(LocalDateTime.now());
+                    userCouponMapper.updateById(userCoupon);
+                    
+                    log.info("订单 {} 使用的优惠券 {} 已退回", orderId, order.getCouponId());
+                }
+            } catch (Exception e) {
+                log.error("退回优惠券时发生错误", e);
+                throw new BusinessException("退回优惠券失败：" + e.getMessage());
+            }
+        }
+        
         log.info("订单 {} 已成功取消", orderId);
         
         return getOrder(orderId);
@@ -294,6 +356,27 @@ public class OrderServiceImpl implements OrderService {
                 order.setUpdatedAt(LocalDateTime.now());
                 orderMapper.updateById(order);
                 
+                // 如果订单使用了优惠券，退回优惠券
+                if (order.getCouponId() != null) {
+                    // 查找用户优惠券记录
+                    LambdaQueryWrapper<UserCoupon> couponQueryWrapper = new LambdaQueryWrapper<>();
+                    couponQueryWrapper.eq(UserCoupon::getUserId, order.getUserId())
+                                    .eq(UserCoupon::getCouponId, order.getCouponId())
+                                    .eq(UserCoupon::getOrderId, order.getOrderId());
+                    
+                    UserCoupon userCoupon = userCouponMapper.selectOne(couponQueryWrapper);
+                    if (userCoupon != null) {
+                        // 重置优惠券状态为未使用
+                        userCoupon.setStatus(0);  // 0-未使用
+                        userCoupon.setOrderId(null);
+                        userCoupon.setUsedTime(null);
+                        userCoupon.setUpdatedAt(LocalDateTime.now());
+                        userCouponMapper.updateById(userCoupon);
+                        
+                        log.info("超时订单 {} 使用的优惠券 {} 已退回", order.getOrderId(), order.getCouponId());
+                    }
+                }
+                
                 log.info("订单 {} 已自动取消", order.getOrderId());
             } catch (Exception e) {
                 log.error("处理超时订单 {} 时发生错误: {}", order.getOrderId(), e.getMessage(), e);
@@ -311,9 +394,22 @@ public class OrderServiceImpl implements OrderService {
     
     private OrderResponse buildOrderResponse(Order order, List<OrderItem> items) {
         OrderResponse response = new OrderResponse();
-        BeanUtils.copyProperties(order, response);
+        // 复制基本字段
+        response.setOrderId(order.getOrderId());
+        response.setUserId(order.getUserId());
+        response.setCouponId(order.getCouponId());
+        response.setTotalAmount(order.getTotalAmount());
+        response.setDiscountAmount(order.getDiscountAmount());
+        response.setPayAmount(order.getPayAmount());
+        response.setStatus(order.getStatus());
         response.setStatusText(getStatusText(order.getStatus()));
+        response.setPayType(order.getPayType());
+        response.setPayTime(order.getPayTime());
+        response.setRemark(order.getRemark());
+        response.setCreatedAt(order.getCreatedAt());
+        response.setUpdatedAt(order.getUpdatedAt());
         
+        // 处理订单项
         List<OrderItemResponse> itemResponses = items.stream().map(item -> {
             OrderItemResponse itemResponse = new OrderItemResponse();
             BeanUtils.copyProperties(item, itemResponse);
@@ -321,7 +417,12 @@ public class OrderServiceImpl implements OrderService {
             // 查询商品信息获取主图
             Product product = productMapper.selectById(item.getProductId());
             if (product != null) {
-                itemResponse.setMainImage(product.getMainImage());
+                // 确保图片路径以/images/开头
+                String mainImage = product.getMainImage();
+                if (mainImage != null && !mainImage.startsWith("/images/")) {
+                    mainImage = "/images/" + mainImage;
+                }
+                itemResponse.setMainImage(mainImage);
             }
             
             List<OrderItemSpecResponse> specResponses = item.getSpecs().stream().map(spec -> {

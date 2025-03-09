@@ -16,12 +16,20 @@ public class WebMvcConfig implements WebMvcConfigurer {
         
         // 配置静态资源访问
         registry.addResourceHandler("/static/**")
-                .addResourceLocations("classpath:/static/");
+                .addResourceLocations("classpath:/static/")
+                .setCachePeriod(3600)
+                .resourceChain(true);
         
         // 配置上传文件访问
         registry.addResourceHandler("/uploads/**")
                 .addResourceLocations("file:" + uploadPath + "/")
-                .setCachePeriod(3600) // 缓存一小时
+                .setCachePeriod(3600)
+                .resourceChain(true);
+        
+        // 配置图片资源访问
+        registry.addResourceHandler("/images/**")
+                .addResourceLocations("classpath:/static/images/")
+                .setCachePeriod(3600)
                 .resourceChain(true);
     }
 

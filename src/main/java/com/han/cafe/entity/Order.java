@@ -15,10 +15,12 @@ public class Order {
     @TableId(type = IdType.INPUT)
     private String orderId;
     private Integer userId;
+    private Integer couponId;  // 使用的优惠券ID
     private BigDecimal totalAmount;
-    private BigDecimal actualAmount;
-    private Integer status;
-    private Integer payType;
+    private BigDecimal discountAmount;  // 优惠金额
+    private BigDecimal payAmount;  // 实付金额
+    private Integer status;  // 0-待支付 1-已支付 2-已完成 3-已取消
+    private Integer payType;  // 1-微信支付 2-支付宝
     private LocalDateTime payTime;
     private String remark;
     private LocalDateTime createdAt;

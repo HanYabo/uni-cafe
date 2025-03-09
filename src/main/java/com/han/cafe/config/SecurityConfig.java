@@ -37,10 +37,24 @@ public class SecurityConfig {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .authorizeHttpRequests(authorize -> authorize
-                // 静态资源和上传文件访问
-                .requestMatchers("/static/**", "/uploads/**").permitAll()
+                // 静态资源和上传文件访问放在最前面
+                .requestMatchers(
+                    "/static/**", 
+                    "/uploads/**", 
+                    "/images/**",
+                    "/*.ico",
+                    "/*.html",
+                    "/*.js",
+                    "/*.css"
+                ).permitAll()
                 // API接口访问
-                .requestMatchers("/api/auth/**", "/api/file/upload", "/api/categories/**", "/api/orders/**").permitAll()
+                .requestMatchers(
+                    "/api/auth/**", 
+                    "/api/file/upload", 
+                    "/api/categories/**", 
+                    "/api/orders/**",
+                    "/api/coupons/**"
+                ).permitAll()
                 // 其他所有请求需要认证
                 .anyRequest().authenticated()
             )
