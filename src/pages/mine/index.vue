@@ -1,8 +1,23 @@
 <script setup>
 import { onShow } from '@dcloudio/uni-app'
 import { computed, onMounted, ref } from 'vue'
+import { getCouponListAPI } from '@/api/coupon'
+import { formatTime } from '@/utils/format'
+
 const statusBarHeight = ref(0)
 const userInfo = ref(null)
+
+const getCouponList = async () => {
+  const res = await getCouponListAPI()
+  if (res.code === 200) {
+    coupons.value = res.data
+  } else {
+    uni.showToast({
+      title: '优惠券信息获取失败',
+      icon: 'error'
+    })
+  }
+}
 
 onMounted(() => {
   const systemInfo = uni.getSystemInfoSync()
@@ -15,9 +30,10 @@ const checkLoginStatus = () => {
   userInfo.value = info || null
 }
 
-// 页面显示时检查登录状态
+// 页面显示时检查登录状态并获取信息
 onShow(() => {
   checkLoginStatus()
+  getCouponList()
 })
 
 const handleLogin = () => {
@@ -33,22 +49,9 @@ const handleToAddress = () => {
 }
 
 // 优惠券数据
-const coupons = ref([
-  {
-    id: 1,
-    type: '满减券',
-    amount: 10,
-    condition: '满30可用',
-    expireDate: '2024-04-30'
-  },
-  {
-    id: 2,
-    type: '折扣券',
-    amount: 8.8,
-    condition: '无门槛',
-    expireDate: '2024-04-15'
-  }
-])
+const coupons = ref([])
+
+// 无门槛优惠券优惠金额
 
 const isLogin = computed(() => {
   return !!uni.getStorageSync('token')
@@ -94,18 +97,19 @@ const handleAddressClick = () => {
         <view class="coupon-content">
           <text v-if="!isLogin" class="login-tip">登录后查看优惠券</text>
           <view class="coupon-list" :class="{ 'not-login': !isLogin }">
-            <view class="coupon-item" v-for="coupon in coupons" :key="coupon.id">
+            <view class="coupon-item" v-for="coupon in coupons" :key="coupon.couponId">
               <view class="coupon-left">
                 <view class="amount-wrap">
-                  <text class="symbol" v-if="coupon.type === '满减券'">¥</text>
-                  <text class="amount">{{ coupon.amount }}</text>
-                  <text class="unit" v-if="coupon.type === '折扣券'">折</text>
+                  <text class="symbol" v-if="coupon.type === 1">¥</text>
+                  <text class="amount" v-if="coupon.type === 1">{{ coupon.amount }}</text>
+                  <text class="amount" v-else>{{ (coupon.discount / 10).toFixed(1) }}</text>
+                  <text class="unit" v-if="coupon.type === 2">折</text>
                 </view>
-                <text class="condition">{{ coupon.condition }}</text>
+                <text class="condition">{{ coupon.threshold === 0.00 ? '无门槛' : `满${coupon.threshold}可用`  }}</text>
               </view>
               <view class="coupon-right">
-                <text class="type">{{ coupon.type }}</text>
-                <text class="date">有效期至：{{ coupon.expireDate }}</text>
+                <text class="type">{{ coupon.type === 1 ?  '满减券' : '无门槛' }}</text>
+                <text class="date">有效期至：{{ formatTime(coupon.endTime) }}</text>
                 <view class="use-btn">立即使用</view>
               </view>
             </view>

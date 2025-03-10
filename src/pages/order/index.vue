@@ -365,7 +365,7 @@ const buyNow = () => {
       specs: specs,
       price: selectedPrice.value,
       quantity: productQuantity.value,
-      image: currentProduct.baseImage
+      image: currentProduct.mainImage
     }
   };
   

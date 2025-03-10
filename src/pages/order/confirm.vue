@@ -1,9 +1,13 @@
 <script setup>
+import { getCouponListAPI } from '@/api/coupon';
 import { createOrder, payOrderAPI } from '@/api/order';
+import { formatTime } from '@/utils/format';
+import { onShow } from '@dcloudio/uni-app';
 import { computed, onMounted, ref } from 'vue';
 
 const baseUrl = 'http://localhost:9000';  // 本地后端服务地址
 
+// TODO: 后续需要修改
 const orderInfo = ref({
   products: [],
   shop: {
@@ -23,7 +27,25 @@ const orderInfo = ref({
   note: ''
 });
 
+// 优惠券数据
+const coupons = ref([])
 
+// 获取优惠券信息
+const getCouponList = async () => {
+  const res = await getCouponListAPI();
+  if (res.code === 200) {
+    coupons.value = res.data;
+  }else {
+    uni.showToast({
+      title: '优惠券信息获取失败',
+      icon: 'error'
+    })
+  }
+} 
+
+onShow(() => {
+  getCouponList();
+})
 
 // 配送方式
 const deliveryType = ref('自取');
@@ -36,11 +58,50 @@ const totalPrice = computed(() => {
   }, 0);
 });
 
-// 优惠券选中状态
-const isCouponSelected = ref(false);
 
-// 优惠券金额
-const couponAmount = ref(5);
+// 选中的优惠券
+const selectedCoupon = ref(null)
+
+// 优惠券选择面板显示状态
+const isCouponPanelVisible = ref(false)
+
+// 显示优惠券选择面板
+const showCouponPanel = () => {
+  isCouponPanelVisible.value = true
+}
+
+// 隐藏优惠券选择面板
+const hideCouponPanel = () => {
+  isCouponPanelVisible.value = false
+}
+
+// 选择优惠券
+const selectCoupon = (coupon) => {
+  // 如果优惠券状态为1或者商品总价未达到使用门槛，则不可选择
+  if (coupon.status === 1 || totalPrice.value < coupon.threshold) return
+  selectedCoupon.value = coupon
+  hideCouponPanel()
+}
+
+// 计算优惠金额
+const discountAmount = computed(() => {
+  if (!selectedCoupon.value) return 0
+  
+  const total = totalPrice.value
+  if (selectedCoupon.value.type === 1) {
+    // 满减券
+    return total >= selectedCoupon.value.threshold ? selectedCoupon.value.amount : 0
+  } else {
+    // 折扣券
+    return total >= selectedCoupon.value.threshold ? 
+      Math.floor(total * (100 - selectedCoupon.value.discount)) / 100 : 0
+  }
+})
+
+// 实际支付金额
+const actualPrice = computed(() => {
+  return Math.max(0, totalPrice.value - discountAmount.value)
+})
 
 // 备注输入组件显示状态
 const isNoteEditorVisible = ref(false);
@@ -60,21 +121,6 @@ const quickNotes = ref([
 
 // 已选择的快捷备注
 const selectedQuickNotes = ref([]);
-
-// 实际支付金额
-const actualPrice = computed(() => {
-  let total = totalPrice.value;
-  // 如果选中了优惠券，减去优惠券金额
-  if (isCouponSelected.value) {
-    total = Math.max(0, total - couponAmount.value);
-  }
-  return total;
-});
-
-// 切换优惠券选中状态
-const toggleCoupon = () => {
-  isCouponSelected.value = !isCouponSelected.value;
-};
 
 // 显示备注编辑器
 const showNoteEditor = () => {
@@ -195,6 +241,7 @@ const submitOrder = async () => {
   const data = {
     items: items,
     remark: orderInfo.value.note,
+    couponId: selectedCoupon.value?.couponId
   }
   // 异步接口
   const result = await createOrder(data);
@@ -291,11 +338,16 @@ const submitOrder = async () => {
       
       <!-- 额外费用 -->
       <view class="extra-fee-list">
-        <view class="fee-item">
+        <view class="fee-item" @click="showCouponPanel">
           <text class="fee-name">优惠券</text>
           <view class="fee-right">
-            <text class="fee-tag discount">满20减{{ couponAmount }}元</text>
-            <view class="checkbox" :class="{ checked: isCouponSelected }" @tap="toggleCoupon"></view>
+            <text v-if="selectedCoupon" class="selected-coupon">
+              {{ selectedCoupon.type === 1 ? 
+                `满${selectedCoupon.threshold}减${selectedCoupon.amount}` : 
+                (selectedCoupon.threshold > 0 ? `满${selectedCoupon.threshold}打${selectedCoupon.discount / 10}折` : `${selectedCoupon.discount / 10}折`) }}
+            </text>
+            <text v-else class="no-coupon">未使用</text>
+            <text class="arrow">></text>
           </view>
         </view>
       </view>
@@ -317,6 +369,18 @@ const submitOrder = async () => {
       <view class="subtotal">
         <text class="subtotal-text">共{{ orderInfo.products.length }}件商品，小计</text>
         <text class="subtotal-price">¥{{ totalPrice }}</text>
+      </view>
+      
+      <!-- 优惠券减免 -->
+      <view class="discount-info" v-if="selectedCoupon">
+        <view class="discount-item">
+          <text class="discount-label">优惠券减免</text>
+          <text class="discount-value">-¥{{ discountAmount }}</text>
+        </view>
+        <view class="final-price">
+          <text class="final-label">优惠后</text>
+          <text class="final-value">¥{{ actualPrice }}</text>
+        </view>
       </view>
     </view>
     
@@ -373,6 +437,45 @@ const submitOrder = async () => {
           </view>
         </view>
       </view>
+    </view>
+    
+    <!-- 优惠券选择面板 -->
+    <view class="coupon-panel-mask" v-show="isCouponPanelVisible" @click="hideCouponPanel"></view>
+    <view class="coupon-panel" :class="{ visible: isCouponPanelVisible }">
+      <view class="panel-header">
+        <text class="title">选择优惠券</text>
+        <text class="close" @click="hideCouponPanel">×</text>
+      </view>
+      <scroll-view scroll-y class="coupon-list">
+        <view 
+          v-for="coupon in coupons" 
+          :key="coupon.couponId"
+          class="coupon-item"
+          :class="{ 
+            'selected': selectedCoupon?.couponId === coupon.couponId,
+            'disabled': coupon.status === 1 || totalPrice < coupon.threshold
+          }"
+          @click="selectCoupon(coupon)"
+        >
+          <view class="coupon-left">
+            <view class="amount" :class="{ 'discount': coupon.type === 2 }">
+              <text v-if="coupon.type === 1">¥{{ coupon.amount }}</text>
+              <text v-else>{{ (coupon.discount / 10).toFixed(1) }}折</text>
+            </view>
+            <text class="threshold" v-if="coupon.threshold > 0">满{{ coupon.threshold }}元可用</text>
+            <text class="threshold" v-else>无门槛</text>
+          </view>
+          <view class="coupon-right">
+            <view class="coupon-info">
+              <text class="type">{{ coupon.type === 1 ? '满减券' : '折扣券' }}</text>
+              <text class="date">有效期至：{{ formatTime(coupon.endTime) }}</text>
+            </view>
+            <text v-if="coupon.status === 1 || totalPrice < coupon.threshold" class="unusable">
+              {{ coupon.status === 1 ? '不可用' : '未满足使用门槛' }}
+            </text>
+          </view>
+        </view>
+      </scroll-view>
     </view>
   </view>
 </template>
@@ -584,48 +687,20 @@ const submitOrder = async () => {
         display: flex;
         align-items: center;
         
-        .fee-tag {
-          font-size: 12px;
-          color: #999999;
-          background: #f5f5f5;
-          padding: 2px 6px;
-          border-radius: 4px;
-          margin-right: 8px;
-          
-          &.discount {
-            color: #f0ad4e;
-            background: #fff8e8;
-          }
-        }
-        
-        .fee-price {
+        .selected-coupon {
           font-size: 14px;
-          color: #333333;
+          color: #ff6b00;
         }
         
-        .checkbox {
-          width: 18px;
-          height: 18px;
-          border-radius: 50%;
-          border: 1px solid #ddd;
-          position: relative;
-          
-          &.checked {
-            border-color: #1296db;
-            background-color: #1296db;
-            
-            &::after {
-              content: '';
-              position: absolute;
-              left: 5px;
-              top: 2px;
-              width: 6px;
-              height: 10px;
-              border: solid white;
-              border-width: 0 2px 2px 0;
-              transform: rotate(45deg);
-            }
-          }
+        .no-coupon {
+          font-size: 14px;
+          color: #999;
+        }
+        
+        .arrow {
+          margin-left: 8px;
+          font-size: 14px;
+          color: #999;
         }
       }
     }
@@ -680,7 +755,8 @@ const submitOrder = async () => {
     display: flex;
     justify-content: flex-end;
     align-items: center;
-    padding: 16px;
+    padding: 16px 16px 8px;  // 减小底部padding
+    border-bottom: 1px dashed #eee;  // 添加虚线分隔
     
     .subtotal-text {
       font-size: 12px;
@@ -692,6 +768,49 @@ const submitOrder = async () => {
       font-size: 16px;
       color: #333333;
       font-weight: 500;
+    }
+  }
+  
+  // 优惠信息样式
+  .discount-info {
+    padding: 0 16px 16px;
+    
+    .discount-item {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      margin-top: 8px;
+      
+      .discount-label {
+        font-size: 12px;
+        color: #999999;
+        margin-right: 8px;
+      }
+      
+      .discount-value {
+        font-size: 14px;
+        color: #ff6b00;
+        font-weight: 500;
+      }
+    }
+    
+    .final-price {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      margin-top: 8px;
+      
+      .final-label {
+        font-size: 12px;
+        color: #999999;
+        margin-right: 8px;
+      }
+      
+      .final-value {
+        font-size: 16px;
+        color: #ff6b00;
+        font-weight: bold;
+      }
     }
   }
 }
@@ -886,6 +1005,232 @@ const submitOrder = async () => {
     font-size: 14px;
     font-weight: 500;
     border-radius: 20px;
+  }
+}
+
+// 优惠券选择面板
+.coupon-panel-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 998;
+}
+
+.coupon-panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #fff;
+  z-index: 999;
+  border-radius: 20px 20px 0 0;
+  transform: translateY(100%);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  padding-bottom: env(safe-area-inset-bottom);
+  min-height: 65vh;
+  
+  &.visible {
+    transform: translateY(0);
+  }
+  
+  .panel-header {
+    padding: 20px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #f5f5f5;
+    position: relative;
+    
+    &::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 8px;
+      transform: translateX(-50%);
+      width: 40px;
+      height: 4px;
+      background: #eee;
+      border-radius: 2px;
+    }
+    
+    .title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+    }
+    
+    .close {
+      font-size: 24px;
+      color: #999;
+      padding: 4px 8px;
+      line-height: 1;
+    }
+  }
+  
+  .coupon-list {
+    max-height: calc(65vh - 60px);
+    padding: 16px;
+    box-sizing: border-box;
+    
+    .coupon-item {
+      display: flex;
+      margin-bottom: 12px;
+      background: #fff;
+      border-radius: 12px;
+      padding: 12px;
+      position: relative;
+      border: 1px solid #eee;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+      transition: all 0.3s ease;
+      box-sizing: border-box;
+      width: 100%;
+      
+      &:active {
+        transform: scale(0.98);
+      }
+      
+      &.selected {
+        border-color: #1296db;
+        background: rgba(18, 150, 219, 0.05);
+        
+        &::after {
+          content: '✓';
+          position: absolute;
+          right: 12px;
+          top: 50%;
+          transform: translateY(-50%);
+          width: 20px;
+          height: 20px;
+          line-height: 20px;
+          text-align: center;
+          color: #fff;
+          background: #1296db;
+          border-radius: 50%;
+          font-size: 12px;
+        }
+      }
+      
+      &.disabled {
+        opacity: 0.6;
+        background: #f8f8f8;
+        pointer-events: none;
+      }
+      
+      .coupon-left {
+        width: 100px;
+        flex-shrink: 0;
+        text-align: center;
+        border-right: 1px dashed #ddd;
+        padding: 8px;
+        margin-right: 12px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        position: relative;
+        
+        &::before,
+        &::after {
+          content: '';
+          position: absolute;
+          right: -6px;
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          background: #f7f7f7;
+        }
+        
+        &::before {
+          top: -12px;
+        }
+        
+        &::after {
+          bottom: -12px;
+        }
+        
+        .amount {
+          font-size: 18px;
+          font-weight: bold;
+          color: #ff6b00;
+          line-height: 1.2;
+          margin-bottom: 6px;
+          
+          &.discount {
+            font-size: 16px;
+          }
+        }
+        
+        .threshold {
+          font-size: 10px;
+          color: #666;
+          background: rgba(18, 150, 219, 0.08);
+          padding: 2px 4px;
+          border-radius: 10px;
+          display: inline-block;
+          white-space: nowrap;
+        }
+      }
+      
+      .coupon-right {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding-right: 45px;
+        position: relative;
+        
+        .coupon-info {
+          width: 100%;
+          
+          .type {
+            display: block;
+            font-size: 14px;
+            color: #333;
+            font-weight: 500;
+            margin-bottom: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          
+          .date {
+            display: block;
+            font-size: 12px;
+            color: #999;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            
+            &::before {
+              content: '';
+              display: inline-block;
+              width: 3px;
+              height: 3px;
+              background: #ddd;
+              border-radius: 50%;
+              margin-right: 4px;
+              vertical-align: middle;
+            }
+          }
+        }
+        
+        .unusable {
+          position: absolute;
+          right: 8px;
+          top: 8px;
+          transform: none;
+          color: #999;
+          font-size: 11px;
+          background: rgba(0, 0, 0, 0.05);
+          padding: 3px 6px;
+          border-radius: 10px;
+          white-space: nowrap;
+        }
+      }
+    }
   }
 }
 </style> 

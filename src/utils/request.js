@@ -15,7 +15,7 @@ const requestInterceptor = (config) => {
     const systemInfo = wx.getSystemInfoSync()
     // 如果是真机环境
     if (!systemInfo.platform.includes('devtools')) {
-      // 替换成您电脑的本地IP地址
+      // 替换成电脑的本地IP地址
       config.url = config.url.replace('localhost', '192.168.17.1') // 本机IP
     }
   }

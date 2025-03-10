@@ -37,6 +37,11 @@
           <text>商品总价</text>
           <text>¥{{ order.totalAmount }}</text>
         </view>
+        <!-- 优惠券信息 -->
+        <view class="price-item discount" v-if="order.couponId">
+          <text>优惠券减免</text>
+          <text class="discount-price">-¥{{ (order.totalAmount - order.payAmount).toFixed(2) }}</text>
+        </view>
         <view class="price-item total">
           <text>实付金额</text>
           <text class="total-price">¥{{ order.payAmount }}</text>
@@ -339,12 +344,23 @@ onLoad((options) => {
       .goods-name {
         font-size: 28rpx;
         color: #333;
-        margin-bottom: 8rpx;
+        margin-bottom: 12rpx;
+        font-weight: 500;
+        display: block;
       }
 
       .goods-spec {
         font-size: 24rpx;
         color: #999;
+        display: inline-block;
+        margin-right: 8rpx;
+        background: #f8f8f8;
+        padding: 2rpx 8rpx;
+        border-radius: 4rpx;
+        
+        &:last-child {
+          margin-right: 0;
+        }
       }
     }
 
@@ -378,6 +394,13 @@ onLoad((options) => {
     margin-bottom: 16rpx;
     font-size: 28rpx;
     color: #666;
+
+    &.discount {
+      .discount-price {
+        color: #ff6b00;
+        font-weight: 500;
+      }
+    }
 
     &.total {
       margin-top: 20rpx;
