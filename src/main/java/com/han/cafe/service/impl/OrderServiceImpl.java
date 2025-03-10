@@ -185,10 +185,32 @@ public class OrderServiceImpl implements OrderService {
             throw new BusinessException("订单状态不正确");
         }
         
-        order.setStatus(1);
+        // 更新订单状态
+        order.setStatus(1);  // 1-已支付
         order.setPayType(payType);
         order.setPayTime(LocalDateTime.now());
         orderMapper.updateById(order);
+        
+        // 如果使用了优惠券，更新优惠券状态
+        if (order.getCouponId() != null) {
+            // 查找用户优惠券记录
+            LambdaQueryWrapper<UserCoupon> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(UserCoupon::getUserId, order.getUserId())
+                       .eq(UserCoupon::getCouponId, order.getCouponId())
+                       .eq(UserCoupon::getStatus, 0);  // 状态为未使用
+            
+            UserCoupon userCoupon = userCouponMapper.selectOne(queryWrapper);
+            if (userCoupon != null) {
+                // 更新优惠券状态为已使用
+                userCoupon.setStatus(1);  // 1-已使用
+                userCoupon.setOrderId(orderId);
+                userCoupon.setUsedTime(LocalDateTime.now());
+                userCoupon.setUpdatedAt(LocalDateTime.now());
+                userCouponMapper.updateById(userCoupon);
+                
+                log.info("订单 {} 的优惠券 {} 已标记为已使用", orderId, order.getCouponId());
+            }
+        }
         
         return getOrder(orderId);
     }
