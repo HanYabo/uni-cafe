@@ -3,6 +3,7 @@
 		{
 			"path": "pages/index/index",
 			"style": {
+				"navigationStyle": "custom",
 				"navigationBarTitleText": "首页"
 			}
 		},
@@ -65,6 +66,15 @@
 			"style": {
 				"navigationStyle": "custom",
 				"navigationBarTextStyle": "black"
+			}
+		},
+		{
+			"path": "pages/coupon/index",
+			"style": {
+				"navigationStyle": "custom",
+				"app-plus": {
+					"titleNView": false
+				}
 			}
 		}
 	],

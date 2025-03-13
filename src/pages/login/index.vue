@@ -65,7 +65,7 @@ const form = reactive({
 // 表单验证
 const validateForm = () => {
   if (!form.mobile) {
-    wx.showToast({
+    uni.showToast({
       title: '请输入手机号',
       icon: 'none'
     })
@@ -73,7 +73,7 @@ const validateForm = () => {
   }
   
   if (!/^1[3-9]\d{9}$/.test(form.mobile)) {
-    wx.showToast({
+    uni.showToast({
       title: '手机号格式不正确',
       icon: 'none'
     })
@@ -81,7 +81,7 @@ const validateForm = () => {
   }
   
   if (!form.password) {
-    wx.showToast({
+    uni.showToast({
       title: '请输入密码',
       icon: 'none'
     })
@@ -91,35 +91,29 @@ const validateForm = () => {
   return true
 }
 
-// 提交表单
+// 登录表单提交
 const handleSubmit = async () => {
-  if (!validateForm()) return
-  
   try {
-    wx.showLoading({
+    if (!validateForm()) return
+    
+    // 显示加载中
+    uni.showLoading({
       title: '登录中...'
     })
     
-    const data = {
+    // 调用登录API
+    const res = await login({
       mobile: form.mobile,
       password: form.password
-    }
-    
-    const res = await login(data)
-    
-    wx.hideLoading()
-    
-    // 保存token
-    wx.setStorageSync('token', res.data.token)
-    // 保存用户信息
-    wx.setStorageSync('userInfo', res.data.userInfo)
-    // 跳转到首页
-    wx.switchTab({
-      url: '/pages/index/index'
     })
+    
+    uni.hideLoading()
+    
+    // 处理登录成功后的操作
+    handleLoginSuccess(res.data)
   } catch (error) {
-    wx.hideLoading()
-    wx.showToast({
+    uni.hideLoading()
+    uni.showToast({
       title: error.message || '登录失败',
       icon: 'none'
     })
@@ -129,19 +123,18 @@ const handleSubmit = async () => {
 // 微信登录
 const handleWechatLogin = async () => {
   try {
-    wx.showLoading({
+    uni.showLoading({
       title: '登录中...'
     })
 
     // 1. 获取用户授权和信息
-    const { userInfo } = await wx.getUserProfile({
+    const { userInfo } = await uni.getUserProfile({
       desc: '用于完善用户资料',
       lang: 'zh_CN'
     })
 
-
     // 2. 获取登录凭证
-    const { code } = await wx.login()
+    const { code } = await uni.login()
     
     if (!code) {
       throw new Error('微信登录失败')
@@ -154,41 +147,33 @@ const handleWechatLogin = async () => {
       avatarUrl: userInfo.avatarUrl
     })
 
+    uni.hideLoading()
 
-    // 4. 保存token和用户信息
+    // 4. 构建完整的用户信息
     const finalUserInfo = {
       ...userInfo,
       ...res.data.userInfo // 合并后端返回的用户信息
     }
     
-    wx.setStorageSync('token', res.data.token)
-    wx.setStorageSync('userInfo', finalUserInfo)
-    
-    wx.showToast({
-      title: '登录成功',
-      icon: 'success',
-      duration: 1500
+    // 5. 调用统一的登录成功处理方法
+    handleLoginSuccess({
+      token: res.data.token,
+      userInfo: finalUserInfo
     })
-
-    // 5. 延迟跳转，让用户看到成功提示
-    setTimeout(() => {
-      uni.switchTab({
-        url: '/pages/index/index'
-      })
-    }, 1500)
+    
   } catch (error) {
-    wx.hideLoading()
+    uni.hideLoading()
     console.error('微信登录失败', error)
     
     if (error.errMsg?.includes('getUserProfile:fail')) {
-      wx.showToast({
+      uni.showToast({
         title: '需要您的授权才能继续',
         icon: 'none'
       })
       return
     }
     
-    wx.showToast({
+    uni.showToast({
       title: error.message || '微信登录失败',
       icon: 'none'
     })
@@ -196,9 +181,42 @@ const handleWechatLogin = async () => {
 }
 
 const handleRegister = () => {
-  wx.navigateTo({
+  uni.navigateTo({
     url: '/pages/register/index'
   })
+}
+
+// 处理登录成功后的操作
+const handleLoginSuccess = (result) => {
+  // 将用户信息和token保存到本地
+  uni.setStorageSync('token', result.token)
+  uni.setStorageSync('userInfo', result.userInfo)
+  
+  console.log('登录成功，发送事件通知其他页面')
+  
+  // 发送登录成功事件，通知其他页面刷新数据
+  uni.$emit('loginSuccess')
+  
+  // 显示登录成功提示
+  uni.showToast({
+    title: '登录成功',
+    icon: 'success',
+    mask: true
+  })
+  
+  // 延迟返回上一页
+  setTimeout(() => {
+    console.log('登录成功，准备返回上一页')
+    uni.navigateBack({
+      success: () => {
+        console.log('成功返回上一页')
+        // 再次通知刷新，确保不会错过
+        setTimeout(() => {
+          uni.$emit('loginSuccess')
+        }, 100)
+      }
+    })
+  }, 1000)
 }
 </script>
 

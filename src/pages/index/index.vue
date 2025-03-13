@@ -1,10 +1,24 @@
 <script setup>
 import { onShow } from '@dcloudio/uni-app'
 import { onMounted, ref } from "vue"
+import { getCouponListAPI } from '@/api/coupon'
 
 const userInfo = ref(null)
 const statusBarHeight = ref(0)
 const showMemberCode = ref(false)
+const couponList = ref([])
+
+// 获取用户优惠券列表
+const getCouponList = async () => {
+  const res = await getCouponListAPI()
+  couponList.value = res.data
+}
+
+// 轮播图数据
+const bannerList = ref([
+  { image: '/static/index/banner1.jpeg' },
+  { image: '/static/index/banner2.jpg' },
+])
 
 // 获取用户信息的方法
 const getUserInfo = () => {
@@ -17,12 +31,25 @@ const getUserInfo = () => {
 onMounted(() => {
   const systemInfo = uni.getSystemInfoSync()
   statusBarHeight.value = systemInfo.statusBarHeight || 0
+  
+  // 获取胶囊按钮位置信息
+  const menuButtonInfo = wx.getMenuButtonBoundingClientRect()
+  
   getUserInfo()
+  
+  // 隐藏原生导航栏
+  uni.hideNavigationBarLoading()
+  // 设置导航栏为透明
+  uni.setNavigationBarColor({
+    frontColor: '#ffffff',
+    backgroundColor: 'transparent'
+  })
 })
 
 // 每次页面显示时都重新获取用户信息
 onShow(() => {
   getUserInfo()
+  getCouponList()
 })
 
 const handleLogin = () => {
@@ -46,68 +73,94 @@ const handleCloseMemberCode = () => {
   showMemberCode.value = false
 }
 
+const handleShowCouponList = () => {
+  uni.navigateTo({
+    url: '/pages/coupon/index'
+  })
+}
+
 </script>
 
 <template>
-  <view class="layout" :style="{ paddingTop: statusBarHeight + 'px' }">
-    <view class="portfolio" v-if="userInfo">
-      <image :src="userInfo.avatarUrl || '/static/mine/avatar.png'" class="avatar" />
-      <view class="text">
-        <text class="username">{{ userInfo.nickName }}</text>
-        <text class="remind">有1张优惠券未使用，立即查看></text>
-      </view>
-      <view class="line1"></view>
-      <view class="code" @tap="handleShowMemberCode">
-        <image src="/static/index/qrcode.svg" class="qr" />
-        <text class="member">会员码</text>
-      </view>
-    </view>
-    <view v-else class="user-mode">
-      <text class="slogan">Hi，欢迎来到uni-cafe</text>
-      <view class="login-btn" @tap="handleLogin">登录/注册</view>
-    </view>
-
-    <view class="panel">
-      <view class="pl" @tap="goToBuy">
-        <view class="icon-wrapper">
-          <image src="/static/index/coffee1.png" class="picture" />
-        </view>
-        <text class="l1">门店自取</text>
-        <text class="l2">下单免排队</text>
-      </view>
-      <view class="line2"></view>
-      <view class="pr" @tap="goToBuy">
-        <view class="icon-wrapper">
-          <image src="/static/index/delivery.png" class="picture" />
-        </view>
-        <text class="r1">外卖闪送</text>
-        <text class="r2">配送到您家</text>
-      </view>
+  <view class="layout">
+    <!-- 轮播图部分 - 完全覆盖顶部 -->
+    <swiper class="swiper" circular autoplay interval="3000" duration="500">
+      <swiper-item v-for="(item, index) in bannerList" :key="index">
+        <image :src="item.image" mode="aspectFill" class="swiper-image" />
+      </swiper-item>
+    </swiper>
+    
+    <!-- 渐变遮罩 - 覆盖导航栏区域 -->
+    <view class="gradient-overlay"></view>
+    
+    <!-- 状态栏占位 - 完全透明 -->
+    <view class="status-bar" :style="{ height: statusBarHeight + 'px' }"></view>
+    
+    <!-- 自定义导航栏 - 透明背景，仅包含右侧按钮 -->
+    <view class="custom-nav-bar">
+      <view class="right-placeholder"></view> <!-- 占位，确保导航区域高度合适 -->
     </view>
 
-    <view class="banner">
-      <view class="banner-item">
-        <view class="icon-wrapper">
-          <image src="/static/index/market.png" class="icon" />
+    <!-- 内容区域 - 去掉白色背景 -->
+    <view class="content-wrapper">
+      <!-- 用户信息或登录提示 -->
+      <view class="user-section" v-if="userInfo">
+        <image :src="userInfo.avatarUrl || '/static/mine/avatar.png'" class="avatar" />
+        <view class="text">
+          <text class="username">{{ userInfo.nickname }}</text>
+          <text class="remind" v-if="couponList.length > 0" @tap="handleShowCouponList">有{{ couponList.length }}张优惠券未使用，立即查看></text>
+          <text class="remind" v-else>暂无优惠券可用哦</text>
         </view>
-        <text class="t1">百货</text>
-        <text class="t2">百货优惠</text>
+        <view class="line1"></view>
+        <view class="code" @tap="handleShowMemberCode">
+          <image src="/static/index/qrcode.svg" class="qr" />
+          <text class="member">会员码</text>
+        </view>
       </view>
-      <view class="line3"></view>
-      <view class="banner-item">
-        <view class="icon-wrapper">
-          <image src="/static/index/group.png" class="icon" />
-        </view>
-        <text class="t1">团餐</text>
-        <text class="t2">企业欢聚享福利</text>
+      <view v-else class="login-section">
+        <text class="slogan">Hi，欢迎来到uni-cafe</text>
+        <view class="login-btn" @tap="handleLogin">登录/注册</view>
       </view>
-      <view class="line3"></view>
-      <view class="banner-item">
-        <view class="icon-wrapper">
-          <image src="/static/index/gift.png" class="icon" />
+
+      <view class="menu-section">
+        <view class="menu-item" @tap="goToBuy">
+          <view class="icon-wrapper">
+            <image src="/static/index/coffee1.png" class="picture" />
+          </view>
+          <text class="title">门店自取</text>
+          <text class="subtitle">下单免排队</text>
         </view>
-        <text class="t1">送礼</text>
-        <text class="t2">送礼更有面子</text>
+        <view class="menu-item" @tap="goToBuy">
+          <view class="icon-wrapper">
+            <image src="/static/index/delivery.png" class="picture" />
+          </view>
+          <text class="title">外卖闪送</text>
+          <text class="subtitle">配送到您家</text>
+        </view>
+      </view>
+
+      <view class="feature-section">
+        <view class="feature-item">
+          <view class="icon-wrapper">
+            <image src="/static/index/market.png" class="icon" />
+          </view>
+          <text class="title">百货</text>
+          <text class="subtitle">百货优惠</text>
+        </view>
+        <view class="feature-item">
+          <view class="icon-wrapper">
+            <image src="/static/index/group.png" class="icon" />
+          </view>
+          <text class="title">团餐</text>
+          <text class="subtitle">企业欢聚享福利</text>
+        </view>
+        <view class="feature-item">
+          <view class="icon-wrapper">
+            <image src="/static/index/gift.png" class="icon" />
+          </view>
+          <text class="title">送礼</text>
+          <text class="subtitle">送礼更有面子</text>
+        </view>
       </view>
     </view>
 
@@ -137,15 +190,114 @@ const handleCloseMemberCode = () => {
 .layout {
   display: flex;
   flex-direction: column;
-  align-items: center;
   min-height: 100vh;
-  background: rgba(246, 246, 246, 1);
-  padding: 30rpx;
+  background: transparent;
   box-sizing: border-box;
+  position: relative;
 }
 
-.portfolio {
+.status-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  background: transparent;
+}
+
+.custom-nav-bar {
+  position: fixed;
+  top: v-bind('statusBarHeight + "px"');
+  left: 0;
+  right: 0;
+  height: 44px;
+  z-index: 10;
+  pointer-events: none; /* 阻止拦截点击事件 */
+  
+  .right-placeholder {
+    height: 32px;
+  }
+}
+
+.swiper {
   width: 100%;
+  height: 580rpx;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  
+  .swiper-image {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.gradient-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 240rpx; /* 增加高度覆盖导航栏和状态栏 */
+  background: linear-gradient(to bottom, rgba(0,0,0,0.5), rgba(0,0,0,0));
+  z-index: 5;
+  pointer-events: none;
+}
+
+.content-wrapper {
+  flex: 1;
+  padding: 20rpx 30rpx 30rpx;
+  margin-top: 480rpx;
+  position: relative;
+  z-index: 3;
+}
+
+/* 用户信息区域 - 调整为更贴近图片的效果 */
+.login-section {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  height: 100rpx;
+  border-radius: 16rpx;
+  margin-bottom: 30rpx;
+  padding: 0 24rpx;
+  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+  position: relative;
+  box-sizing: border-box;
+
+  .slogan {
+    font-size: 28rpx;
+    font-weight: 500;
+    color: #333;
+  }
+
+  .login-btn {
+    min-width: 140rpx;
+    height: 60rpx;
+    background: linear-gradient(135deg, #1296db, #0f85c7);
+    border-radius: 30rpx;
+    padding: 0 24rpx;
+    font-size: 24rpx;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+    font-weight: 500;
+    box-shadow: 0 4rpx 12rpx rgba(18, 150, 219, 0.2);
+    transition: all 0.3s ease;
+
+    &:active {
+      transform: scale(0.98);
+      box-shadow: 0 2rpx 6rpx rgba(18, 150, 219, 0.2);
+    }
+  }
+}
+
+/* 用户信息区域 */
+.user-section {
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -158,18 +310,6 @@ const handleCloseMemberCode = () => {
   position: relative;
   overflow: hidden;
   box-sizing: border-box;
-
-  &::before {
-    content: '';
-    position: absolute;
-    right: -60rpx;
-    top: -60rpx;
-    width: 200rpx;
-    height: 200rpx;
-    background: rgba(18, 150, 219, 0.1);
-    border-radius: 50%;
-    z-index: 0;
-  }
 
   .avatar {
     width: 80rpx;
@@ -226,86 +366,40 @@ const handleCloseMemberCode = () => {
   }
 }
 
-.user-mode {
-  width: 100%;
+/* 菜单区域 */
+.menu-section {
   display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
   background: #ffffff;
-  height: 150rpx;
   border-radius: 16rpx;
+  padding: 30rpx 0;
   margin-bottom: 30rpx;
-  padding: 40rpx;
   box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
   position: relative;
-  overflow: hidden;
   box-sizing: border-box;
-
-  &::before {
-    content: '';
-    position: absolute;
-    right: -60rpx;
-    top: -60rpx;
-    width: 200rpx;
-    height: 200rpx;
-    background: rgba(18, 150, 219, 0.1);
-    border-radius: 50%;
-    z-index: 0;
-  }
-
-  .slogan {
-    font-size: 32rpx;
-    font-weight: 600;
-    color: #333;
-    z-index: 1;
-  }
-
-  .login-btn {
-    min-width: 160rpx;
-    height: 70rpx;
-    background: linear-gradient(135deg, #1296db, #0f85c7);
-    border-radius: 35rpx;
-    padding: 0 30rpx;
-    font-size: 26rpx;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: #fff;
-    font-weight: 500;
-    z-index: 1;
-    box-shadow: 0 4rpx 12rpx rgba(18, 150, 219, 0.2);
-    transition: all 0.3s ease;
-
-    &:active {
-      transform: scale(0.98);
-      box-shadow: 0 2rpx 6rpx rgba(18, 150, 219, 0.2);
-    }
-  }
-}
-
-.panel {
   width: 100%;
-  background: #ffffff;
-  border-radius: 16rpx;
-  padding: 40rpx;
-  margin-bottom: 30rpx;
-  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-sizing: border-box;
 
-  .pl, .pr {
+  .menu-item {
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
+    position: relative;
+    
+    &:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: 10rpx;
+      bottom: 10rpx;
+      width: 1rpx;
+      background: rgba(0, 0, 0, 0.1);
+    }
 
     .icon-wrapper {
       width: 120rpx;
       height: 120rpx;
-      background: rgba(18, 150, 219, 0.1);
+      background: rgba(230, 244, 255, 0.8);
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -319,53 +413,63 @@ const handleCloseMemberCode = () => {
       }
 
       .picture {
-        width: 60rpx;
-        height: 60rpx;
+        width: 52rpx;
+        height: 52rpx;
       }
     }
 
-    .l1, .r1 {
+    .title {
       font-size: 32rpx;
       font-weight: 600;
-      color: #333;
+      color: #222;
       margin-bottom: 8rpx;
+      text-align: center;
+      width: 100%;
     }
 
-    .l2, .r2 {
+    .subtitle {
       font-size: 24rpx;
-      color: #666;
+      font-weight: 500;
+      color: #555;
+      text-align: center;
+      width: 100%;
     }
-  }
-
-  .line2 {
-    width: 2rpx;
-    height: 160rpx;
-    background: rgba(0, 0, 0, 0.1);
-    margin: 0 40rpx;
   }
 }
 
-.banner {
-  width: 100%;
+/* 功能区域 */
+.feature-section {
+  display: flex;
   background: #ffffff;
   border-radius: 16rpx;
-  padding: 30rpx;
+  padding: 30rpx 0;
   box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  position: relative;
   box-sizing: border-box;
+  width: 100%;
 
-  .banner-item {
+  .feature-item {
     flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
+    position: relative;
+    
+    &:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: 10rpx;
+      bottom: 10rpx;
+      width: 1rpx;
+      background: rgba(0, 0, 0, 0.1);
+    }
 
     .icon-wrapper {
-      width: 80rpx;
-      height: 80rpx;
-      background: rgba(18, 150, 219, 0.1);
+      width: 90rpx;
+      height: 90rpx;
+      background: rgba(230, 244, 255, 0.8);
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -384,24 +488,22 @@ const handleCloseMemberCode = () => {
       }
     }
 
-    .t1 {
+    .title {
       font-size: 28rpx;
       font-weight: 600;
-      color: #333;
+      color: #222;
       margin-bottom: 6rpx;
+      text-align: center;
+      width: 100%;
     }
 
-    .t2 {
+    .subtitle {
       font-size: 22rpx;
-      color: #666;
+      font-weight: 500;
+      color: #555;
+      text-align: center;
+      width: 100%;
     }
-  }
-
-  .line3 {
-    width: 2rpx;
-    height: 80rpx;
-    background: rgba(0, 0, 0, 0.1);
-    margin: 0 20rpx;
   }
 }
 

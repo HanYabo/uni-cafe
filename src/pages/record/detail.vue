@@ -9,7 +9,10 @@
     }">
       <view class="status-header">
         <text class="status-text">{{ getStatusText(order.status) }}</text>
-        <text class="status-desc">{{ getStatusDesc(order.status) }}</text>
+        <text class="status-desc">
+          <text v-if="order.status === 0 && countdown" class="countdown">{{ countdown }} </text>
+          {{ getStatusDesc(order.status) }}
+        </text>
       </view>
     </view>
 
@@ -95,22 +98,100 @@
 </template>
 
 <script setup>
-import { getOrderDetailAPI } from '@/api/order'
-import { formatTime } from '@/utils/format'
-import { onLoad } from '@dcloudio/uni-app'
-import { ref } from 'vue'
+import { getOrderDetailAPI } from '@/api/order';
+import { formatTime } from '@/utils/format';
+import { onLoad, onShow, onUnload } from '@dcloudio/uni-app';
+import { ref } from 'vue';
 
 const baseUrl = 'http://localhost:9000'
 
+// 订单状态枚举
+const OrderStatus = {
+  WAITING_PAY: 0,   // 待支付
+  PROCESSING: 1,    // 已支付
+  COMPLETED: 2,     // 已完成
+  CANCELLED: 3      // 已取消
+}
+
 // 模拟订单数据
 const order = ref({})
+const orderId = ref('')
+
+// 倒计时相关
+const countdown = ref('')
+let timer = null
+
+// 设置倒计时
+const setupCountdown = (createdAt) => {
+  if (!createdAt || order.value.status !== OrderStatus.WAITING_PAY) return
+  
+  const orderTime = new Date(createdAt).getTime()
+  const now = new Date().getTime()
+  const timeLeft = Math.max(0, 600000 - (now - orderTime)) // 10分钟 = 600000毫秒
+
+  // 清除之前的定时器
+  if (timer) clearInterval(timer)
+
+  if (timeLeft > 0) {
+    timer = setInterval(async () => {
+      const currentTime = new Date().getTime()
+      const remaining = Math.max(0, 600000 - (currentTime - orderTime))
+      
+      if (remaining <= 0) {
+        clearInterval(timer)
+        countdown.value = ''
+        
+        // 更新订单状态为已取消
+        order.value = {
+          ...order.value,
+          status: OrderStatus.CANCELLED
+        }
+        
+        uni.showToast({
+          title: '订单已超时自动取消',
+          icon: 'none'
+        })
+        
+        // 发送事件通知列表页刷新
+        uni.$emit('orderStatusChanged', {
+          orderId: order.value.orderId,
+          status: OrderStatus.CANCELLED
+        })
+      } else {
+        const minutes = Math.floor(remaining / 60000)
+        const seconds = Math.floor((remaining % 60000) / 1000)
+        countdown.value = `${minutes}:${seconds.toString().padStart(2, '0')}`
+      }
+    }, 1000)
+
+    // 初始设置
+    const minutes = Math.floor(timeLeft / 60000)
+    const seconds = Math.floor((timeLeft % 60000) / 1000)
+    countdown.value = `${minutes}:${seconds.toString().padStart(2, '0')}`
+  } else {
+    // 如果已经超时，确保状态正确
+    if (order.value.status === OrderStatus.WAITING_PAY) {
+      order.value.status = OrderStatus.CANCELLED
+      
+      // 发送事件通知列表页刷新
+      uni.$emit('orderStatusChanged', {
+        orderId: order.value.orderId,
+        status: OrderStatus.CANCELLED
+      })
+    }
+  }
+}
 
 // 定义获取订单详情方法
-const getOrderDetail = async (orderId) => {
-  const res = await getOrderDetailAPI(orderId)
+const getOrderDetail = async (id) => {
+  const res = await getOrderDetailAPI(id)
   if(res.code === 200) {
     order.value = res.data
-  }else {
+    // 如果是待支付状态，启动倒计时
+    if (order.value.status === OrderStatus.WAITING_PAY) {
+      setupCountdown(order.value.createdAt)
+    }
+  } else {
     uni.showToast({
       title: '订单详情获取失败',
       icon: 'error',
@@ -119,6 +200,39 @@ const getOrderDetail = async (orderId) => {
   }
 }
 
+// 监听订单状态变化事件
+const handleOrderStatusChange = (data) => {
+  if (data.orderId === orderId.value) {
+    // 当该订单状态发生变化时刷新详情
+    getOrderDetail(orderId.value)
+  }
+}
+
+// 清理定时器
+onUnload(() => {
+  if (timer) {
+    clearInterval(timer)
+    timer = null
+  }
+  // 移除事件监听
+  uni.$off('orderStatusChanged', handleOrderStatusChange)
+})
+
+// 接收url传递的orderId参数
+onLoad((options) => {
+  orderId.value = options.orderId
+  getOrderDetail(options.orderId)
+  
+  // 添加事件监听
+  uni.$on('orderStatusChanged', handleOrderStatusChange)
+})
+
+// 页面显示时刷新数据
+onShow(() => {
+  if (orderId.value) {
+    getOrderDetail(orderId.value)
+  }
+})
 
 // 联系商家
 const handleContact = () => {
@@ -185,11 +299,6 @@ const getStatusDesc = (status) => {
   }
   return descMap[status] || ''
 }
-
-// 接收url传递的orderId参数
-onLoad((options) => {
-  getOrderDetail(options.orderId)
-})
 </script>
 
 <style lang="scss" scoped>
@@ -197,7 +306,10 @@ onLoad((options) => {
   min-height: 100vh;
   background-color: #f5f5f5;
   padding: 24rpx;
+  padding-bottom: calc(120rpx + env(safe-area-inset-bottom)); // 为底部按钮预留空间
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
 }
 
 .status-card {
@@ -239,6 +351,15 @@ onLoad((options) => {
     .status-desc {
       font-size: 26rpx;
       opacity: 0.9;
+      
+      .countdown {
+        color: #fff;
+        font-weight: bold;
+        background-color: rgba(0, 0, 0, 0.2);
+        padding: 2rpx 8rpx;
+        border-radius: 6rpx;
+        margin-right: 10rpx;
+      }
     }
   }
 
@@ -259,19 +380,22 @@ onLoad((options) => {
   border-radius: 16rpx;
   padding: 30rpx;
   margin-bottom: 24rpx;
-
-  .card-title {
-    display: flex;
-    align-items: center;
-    margin-bottom: 24rpx;
-    font-size: 30rpx;
-    font-weight: bold;
-    color: #333;
-
-    .iconfont {
-      margin-right: 12rpx;
-      color: #1296db;
-      font-size: 32rpx;
+  
+  .goods-list {
+    max-height: 60vh; // 设置最大高度
+    overflow-y: auto; // 允许垂直滚动
+    -webkit-overflow-scrolling: touch; // 增加弹性滚动
+    padding-right: 12rpx; // 为滚动条预留空间
+    
+    /* 美化滚动条 */
+    &::-webkit-scrollbar {
+      width: 4px;
+      background: transparent;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      background: #ddd;
+      border-radius: 2px;
     }
   }
 }
@@ -445,13 +569,12 @@ onLoad((options) => {
   right: 0;
   bottom: 0;
   background-color: #fff;
-  padding: 20rpx;
+  padding: 20rpx 100rpx;
   display: flex;
   justify-content: space-between;
   box-shadow: 0 -2rpx 10rpx rgba(0, 0, 0, 0.05);
   padding-bottom: calc(20rpx + env(safe-area-inset-bottom));
-  padding-left: 100rpx;
-  padding-right: 100rpx;
+  z-index: 100; // 确保按钮在最上层
 
   .btn {
     width: 200rpx;

@@ -13,14 +13,6 @@ onShow(() => {
   getCategoryWithProducts().then(res => {
     categories.value = res.data
   })
-  // TODO: 待完成
-  // nextTick(() => {
-  //   // 获取购物车数据
-  //   const cartData = uni.getStorageSync('cartItems')
-  //   if (cartData) {
-  //     cartItems.value.items = cartData
-  //   }
-  // })
 })
 
 
@@ -145,6 +137,9 @@ const navContentStyle = computed(() => {
 // 切换配送方式
 const switchDeliveryType = (type) => {
   deliveryType.value = type
+  if(type === '外卖') {
+    isNoticeExpanded.value = false
+  }
 }
 
 // 添加搜索按钮位置计算
@@ -218,6 +213,10 @@ const changeQuantity = (item, change) => {
 // 清空购物袋
 const clearCart = () => {
   cartItems.items = [];
+  
+  uni.removeStorageSync('orderData');
+  uni.removeStorageSync('orderItems');
+  
   closeCartPanel();
 };
 
@@ -500,9 +499,9 @@ const handleCheckout = () => {
             <view class="address-info" v-else>
               <text class="address">郑州市二七区正弘城店</text>
               <text class="contact">张三 138****8888</text>
-            </view>
           </view>
-          <view class="notice-wrap">
+          </view>
+          <view class="notice-wrap" v-show="deliveryType === '自取'">
             <text class="notice" :class="{ 'expanded': isNoticeExpanded }">{{ shopInfo.notice }}</text>
           </view>
         </view>

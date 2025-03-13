@@ -262,6 +262,9 @@ const submitOrder = async () => {
             return;
           }
           payOrder(result.data.orderId); 
+          // 清除购物袋
+          uni.removeStorageSync('orderItems');
+          uni.removeStorageSync('orderData');
         }
         // 用户点击取消
         if (res.cancel) {

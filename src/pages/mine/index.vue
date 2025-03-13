@@ -1,8 +1,8 @@
 <script setup>
-import { onShow } from '@dcloudio/uni-app'
-import { computed, onMounted, ref } from 'vue'
 import { getCouponListAPI } from '@/api/coupon'
 import { formatTime } from '@/utils/format'
+import { onLoad, onShow, onUnload } from '@dcloudio/uni-app'
+import { onMounted, ref } from 'vue'
 
 const statusBarHeight = ref(0)
 const userInfo = ref(null)
@@ -24,16 +24,45 @@ onMounted(() => {
   statusBarHeight.value = systemInfo.statusBarHeight || 0
 })
 
+// 修改为一个变量，不是计算属性，这样更容易被手动更新
+const isLogin = ref(false)
+
 // 检查登录状态
 const checkLoginStatus = () => {
-  const info = wx.getStorageSync('userInfo')
+  const info = uni.getStorageSync('userInfo')
+  const token = uni.getStorageSync('token')
   userInfo.value = info || null
+  
+  // 更新登录状态变量
+  isLogin.value = !!token
+  
+  // 只有在有token的情况下才获取优惠券
+  if (token) {
+    getCouponList()
+  } else {
+    coupons.value = []
+  }
 }
 
 // 页面显示时检查登录状态并获取信息
 onShow(() => {
   checkLoginStatus()
-  getCouponList()
+})
+
+// 监听登录成功事件
+const refreshAfterLogin = () => {
+  // 立即更新登录状态并获取优惠券
+  checkLoginStatus()
+}
+
+// 页面加载时添加事件监听
+onLoad(() => {
+  uni.$on('loginSuccess', refreshAfterLogin)
+})
+
+// 页面卸载时移除事件监听，避免内存泄漏
+onUnload(() => {
+  uni.$off('loginSuccess', refreshAfterLogin)
 })
 
 const handleLogin = () => {
@@ -53,10 +82,6 @@ const coupons = ref([])
 
 // 无门槛优惠券优惠金额
 
-const isLogin = computed(() => {
-  return !!uni.getStorageSync('token')
-})
-
 const handleAddressClick = () => {
   if (!isLogin.value) {
     uni.showToast({
@@ -67,6 +92,20 @@ const handleAddressClick = () => {
   }
   uni.navigateTo({
     url: '/pages/address/index'
+  })
+}
+
+// 跳转到优惠券页面
+const goToCouponPage = () => {
+  if (!isLogin.value) {
+    uni.showToast({
+      title: '请先登录',
+      icon: 'none'
+    })
+    return
+  }
+  uni.navigateTo({
+    url: '/pages/coupon/index'
   })
 }
 </script>
@@ -92,7 +131,7 @@ const handleAddressClick = () => {
       <view class="coupon-section">
         <view class="coupon-header">
           <text class="coupon-title">我的优惠券</text>
-          <text class="coupon-more">查看全部 ></text>
+          <text class="coupon-more" @tap="goToCouponPage">查看全部 ></text>
         </view>
         <view class="coupon-content">
           <text v-if="!isLogin" class="login-tip">登录后查看优惠券</text>

@@ -1,7 +1,7 @@
 <script setup>
 import { cancelOrderAPI, deleteOrderAPI, getHistoryOrderAPI } from '@/api/order';
 import { formatTime } from '@/utils/format';
-import { onShow } from '@dcloudio/uni-app';
+import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 
 // 订单状态枚举
@@ -64,7 +64,7 @@ const setupCountdown = (orderId, createdAt) => {
   const timeLeft = Math.max(0, 600000 - (now - orderTime)) // 10分钟 = 600000毫秒
 
   if (timeLeft > 0) {
-    const timer = setInterval(() => {
+    const timer = setInterval(async () => {
       const currentTime = new Date().getTime()
       const remaining = Math.max(0, 600000 - (currentTime - orderTime))
       
@@ -79,11 +79,20 @@ const setupCountdown = (orderId, createdAt) => {
             status: OrderStatus.CANCELLED
           }
         }
-        // 显示提示
-        uni.showToast({
-          title: '订单已超时自动取消',
-          icon: 'none'
-        })
+        // 调用取消订单接口
+        const result = await cancelOrderAPI(orderId)
+        if(result.code === 200) {
+          uni.showToast({
+            title: '订单已超时自动取消',
+            icon: 'none'
+          })
+          
+          // 发送事件通知其他页面
+          uni.$emit('orderStatusChanged', {
+            orderId: orderId,
+            status: OrderStatus.CANCELLED
+          })
+        }
       } else {
         const minutes = Math.floor(remaining / 60000)
         const seconds = Math.floor((remaining % 60000) / 1000)
@@ -98,9 +107,28 @@ const setupCountdown = (orderId, createdAt) => {
   }
 }
 
-// 清理所有定时器
+// 监听订单状态变化事件
+const handleOrderStatusChange = (data) => {
+  // 当收到订单状态变化的通知时，更新本地订单列表
+  const orderIndex = orders.value.findIndex(order => order.orderId === data.orderId)
+  if (orderIndex !== -1) {
+    orders.value[orderIndex] = {
+      ...orders.value[orderIndex],
+      status: data.status
+    }
+  }
+}
+
+// 设置和清理事件监听
+onLoad(() => {
+  // 添加订单状态变化事件监听
+  uni.$on('orderStatusChanged', handleOrderStatusChange)
+})
+
 onUnmounted(() => {
   countdownMap.value.clear()
+  // 移除事件监听
+  uni.$off('orderStatusChanged', handleOrderStatusChange)
 })
 
 // 获取订单列表
