@@ -115,16 +115,29 @@ const goToCouponPage = () => {
     <view class="safe-area">
       <!-- 头像模块 -->
       <view class="portfolio">
-        <image 
-          :src="userInfo ? userInfo.avatarUrl : '/static/mine/avatar.png'" 
-          alt="头像" 
-          class="avatar" 
-        />
-        <view class="text">
-          <text class="username">{{ userInfo ? userInfo.nickName : 'Hello!' }}</text> <br>
-          <text class="remind" v-if="!userInfo">登录享受更多精彩服务</text>
+        <view class="user-info">
+          <view class="avatar-wrap">
+            <image 
+              :src="userInfo ? userInfo.avatarUrl : '/static/mine/avatar.png'" 
+              alt="头像" 
+              class="avatar" 
+            />
+            <view class="member-tag" v-if="userInfo">
+              <text class="member-text">普通会员</text>
+            </view>
+          </view>
+          <view class="text">
+            <text class="username">{{ userInfo ? userInfo.nickName : 'Hello!' }}</text>
+            <text class="remind" v-if="!userInfo">登录享受更多精彩服务</text>
+            <text class="welcome" v-else>欢迎回来，祝您用餐愉快~</text>
+          </view>
         </view>
-        <view v-if="!userInfo" class="btn" @tap="handleLogin">登录/注册</view>
+        <view class="right-area">
+          <view class="qr-code" v-if="userInfo">
+            <image src="/static/index/qrcode.svg" class="qr-icon" />
+          </view>
+          <view v-if="!userInfo" class="btn" @tap="handleLogin">登录/注册</view>
+        </view>
       </view>
       
       <!-- 优惠券模块 -->
@@ -218,18 +231,19 @@ const goToCouponPage = () => {
 }
 
 .portfolio {
-  width: 100%;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  background: #ffffff;
-  height: 150rpx;
-  border-radius: 16rpx;
-  margin-bottom: 30rpx;
-  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24rpx 30rpx;
+  background: linear-gradient(135deg, #ffffff, #f8f9fa);
+  border-radius: 16rpx;
+  box-shadow: 0 4rpx 20rpx rgba(0, 0, 0, 0.05);
   overflow: hidden;
-
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 30rpx;
+  
   &::before {
     content: '';
     position: absolute;
@@ -237,11 +251,11 @@ const goToCouponPage = () => {
     top: -60rpx;
     width: 200rpx;
     height: 200rpx;
-    background: rgba(18, 150, 219, 0.1);
     border-radius: 50%;
+    background: linear-gradient(135deg, rgba(18, 150, 219, 0.1), rgba(18, 150, 219, 0.05));
     z-index: 0;
   }
-
+  
   &::after {
     content: '';
     position: absolute;
@@ -249,64 +263,120 @@ const goToCouponPage = () => {
     bottom: -80rpx;
     width: 160rpx;
     height: 160rpx;
-    background: rgba(18, 150, 219, 0.05);
     border-radius: 50%;
+    background: linear-gradient(135deg, rgba(18, 150, 219, 0.08), rgba(18, 150, 219, 0.03));
     z-index: 0;
   }
 
-  .avatar {
-    width: 80rpx;
-    height: 80rpx;
-    border-radius: 50%;
-    margin-left: 30rpx;
-    background: linear-gradient(45deg, rgba(18, 150, 219, 0.1), rgba(18, 150, 219, 0.2));
-    padding: 15rpx;
-    z-index: 1;
-    object-fit: fill;
-  }
-
-  .text {
-    margin-left: 20rpx;
+  .user-info {
     flex: 1;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    position: relative;
     z-index: 1;
 
-    .username {
-      font-size: 32rpx;
-      font-weight: 600;
-      color: #333;
-      margin-bottom: 6rpx;
-      display: block;
+    .avatar-wrap {
+      position: relative;
+      margin-right: 20rpx;
+      
+      .avatar {
+        width: 80rpx;
+        height: 80rpx;
+        border-radius: 50%;
+        background: #fff;
+        border: 2rpx solid rgba(18, 150, 219, 0.2);
+        box-shadow: 0 4rpx 12rpx rgba(18, 150, 219, 0.1);
+        object-fit: cover;
+      }
+      
+      .member-tag {
+        position: absolute;
+        bottom: -10rpx;
+        left: 52%;
+        transform: translateX(-50%) scale(0.85);
+        transform-origin: center bottom;
+        background: #1296db;
+        border: 2rpx solid #fff;
+        border-radius: 12rpx;
+        padding: 4rpx 12rpx;
+        box-shadow: 0 2rpx 8rpx rgba(18, 150, 219, 0.2);
+        white-space: nowrap;
+        z-index: 2;
+        
+        .member-text {
+          font-size: 20rpx;
+          color: #fff;
+          line-height: 1.2;
+          display: block;
+        }
+      }
     }
 
-    .remind {
-      font-size: 24rpx;
-      color: #666;
-      opacity: 0.8;
-      display: block;
-      margin-top: 6rpx;
+    .text {
+      flex: 1;
+      z-index: 1;
+      padding-left: 10rpx;
+
+      .username {
+        font-size: 32rpx;
+        font-weight: 600;
+        color: #333;
+        display: block;
+        margin-bottom: 6rpx;
+      }
+      
+      .remind {
+        font-size: 24rpx;
+        color: #666;
+        display: block;
+      }
+
+      .welcome {
+        font-size: 24rpx;
+        color: #1296db;
+        display: block;
+        opacity: 0.85;
+      }
     }
   }
 
-  .btn {
-    min-width: 160rpx;
-    height: 70rpx;
-    background: linear-gradient(135deg, #1296db, #0f85c7);
-    border-radius: 35rpx;
-    margin-right: 30rpx;
-    padding: 0 30rpx;
-    font-size: 26rpx;
+  .right-area {
     display: flex;
-    justify-content: center;
     align-items: center;
-    color: #fff;
-    font-weight: 500;
+    position: relative;
     z-index: 1;
-    box-shadow: 0 4rpx 12rpx rgba(18, 150, 219, 0.2);
-    transition: all 0.3s ease;
 
-    &:active {
-      transform: scale(0.98);
-      box-shadow: 0 2rpx 6rpx rgba(18, 150, 219, 0.2);
+    .qr-code {
+      margin-right: 20rpx;
+
+      .qr-icon {
+        width: 40rpx;
+        height: 40rpx;
+        opacity: 0.8;
+        transition: all 0.3s ease;
+        
+        &:active {
+          opacity: 0.6;
+          transform: scale(0.95);
+        }
+      }
+    }
+
+    .btn {
+      background: linear-gradient(135deg, #1296db, #0f85c7);
+      border-radius: 28rpx;
+      padding: 10rpx 28rpx;
+      font-size: 26rpx;
+      color: #fff;
+      font-weight: 500;
+      box-shadow: 0 4rpx 12rpx rgba(18, 150, 219, 0.2);
+      transition: all 0.3s ease;
+      
+      &:active {
+        transform: scale(0.98);
+        box-shadow: 0 2rpx 6rpx rgba(18, 150, 219, 0.2);
+      }
     }
   }
 }

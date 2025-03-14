@@ -262,6 +262,17 @@ const submitOrder = async () => {
           // 清除购物袋
           uni.removeStorageSync('orderItems');
           uni.removeStorageSync('orderData');
+
+          uni.showToast({
+            title: '支付成功',
+            icon: 'success',
+          })
+          // 跳转到订单详情
+          setTimeout(() => {
+            uni.switchTab({
+              url: '/pages/record/index'
+            })
+          }, 1000)
         }
         // 用户点击取消
         if (res.cancel) {

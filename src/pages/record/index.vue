@@ -280,6 +280,10 @@ const handlePayOrAgain = (orderId, status) => {
               title: '支付成功',
               icon: 'success'
             })
+
+            uni.removeStorageSync('orderData')
+            uni.removeStorageSync('orderItems')
+
             getHistoryOrderList()
           }else {
             uni.showToast({
@@ -292,6 +296,7 @@ const handlePayOrAgain = (orderId, status) => {
     })
   }
   // TODO: 再来一单
+  
 }
 
 // 跳转订单详情
