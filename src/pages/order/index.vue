@@ -720,7 +720,7 @@ const handleCheckout = () => {
       <view class="cart-left">
         <view class="cart-icon" @tap="toggleCartPanel">
           <image src="/static/order/cart.png" mode="aspectFit" />
-          <text class="badge">{{ cartItems.items.length }}</text>
+          <text class="badge" v-if="cartItems.items.length > 0">{{ cartItems.items.length }}</text>
         </view>
         <text class="total">¥{{ totalPrice }}</text>
       </view>
