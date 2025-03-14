@@ -276,6 +276,9 @@ const handlePayOrAgain = (orderId, status) => {
           // 执行支付操作
           const result = await payOrderAPI(orderId)
           if(result.code === 200) {
+            // 发送清空购物袋事件
+            uni.$emit('clearShoppingCart');
+            
             uni.showToast({
               title: '支付成功',
               icon: 'success'

@@ -2,7 +2,7 @@
 import { getCouponListAPI } from '@/api/coupon';
 import { createOrder, payOrderAPI } from '@/api/order';
 import { formatTime } from '@/utils/format';
-import { onShow, onHide } from '@dcloudio/uni-app';
+import { onShow } from '@dcloudio/uni-app';
 import { computed, onMounted, ref } from 'vue';
 
 const baseUrl = 'http://localhost:9000';  // 本地后端服务地址
@@ -209,6 +209,20 @@ const payOrder = async (orderId) => {
     // 清空购物车数据
     uni.removeStorageSync('orderItems');
     uni.removeStorageSync('orderData');
+    
+    // 发送清空购物袋事件
+    uni.$emit('clearShoppingCart');
+
+    uni.showToast({
+      title: '支付成功',
+      icon: 'success',
+    })
+    // 跳转到订单详情
+    setTimeout(() => {
+      uni.switchTab({
+        url: '/pages/record/index'
+      })
+    }, 1000)
   }else {
     uni.showToast({
       title: res.message,
@@ -262,6 +276,9 @@ const submitOrder = async () => {
           // 清除购物袋
           uni.removeStorageSync('orderItems');
           uni.removeStorageSync('orderData');
+          
+          // 发送清空购物袋事件
+          uni.$emit('clearShoppingCart');
 
           uni.showToast({
             title: '支付成功',

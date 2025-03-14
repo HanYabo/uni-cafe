@@ -1,7 +1,7 @@
 <script setup>
 import { getCategoryWithProducts } from '@/api/category'
 import { onShow } from '@dcloudio/uni-app'
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 
 // 分类数据
 const categories = ref(null)
@@ -92,8 +92,22 @@ onMounted(() => {
     statusBarHeight.value = 20
     navBarHeight.value = 44
   }
+
+  // 添加购物袋清空事件监听
+  uni.$on('clearShoppingCart', handleClearCart)
 })
 
+// 添加页面卸载时的清理
+onUnmounted(() => {
+  // 移除事件监听
+  uni.$off('clearShoppingCart', handleClearCart)
+})
+
+// 处理清空购物袋的方法
+const handleClearCart = () => {
+  cartItems.items = []
+  isCartPanelVisible.value = false
+}
 
 // 计算店铺信息的位置和高度
 const shopInfoStyle = computed(() => {
@@ -647,7 +661,7 @@ const handleCheckout = () => {
             <text class="product-name">{{ product.name }}</text>
                 <text class="product-desc">{{ product.description }}</text>
             <view class="tags">
-                  <text class="tag">支持配送</text>
+                  <text class="tag">甄选品质</text>
             </view>
             <view class="product-bottom">
               <view class="price">
