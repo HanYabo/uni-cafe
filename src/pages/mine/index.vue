@@ -144,12 +144,26 @@ const goToCouponPage = () => {
       <view class="coupon-section">
         <view class="coupon-header">
           <text class="coupon-title">我的优惠券</text>
-          <text class="coupon-more" @tap="goToCouponPage">查看全部 ></text>
+          <text class="coupon-more" @tap="goToCouponPage" v-show="coupons.length === 0">查看全部 ></text>
         </view>
         <view class="coupon-content">
           <text v-if="!isLogin" class="login-tip">登录后查看优惠券</text>
-          <view class="coupon-list" :class="{ 'not-login': !isLogin }">
-            <view class="coupon-item" v-for="coupon in coupons" :key="coupon.couponId">
+          <!-- 无优惠券时显示的空状态 -->
+          <view class="coupon-list empty-state" v-else-if="coupons.length === 0">
+            <view class="coupon-item empty">
+              <view class="coupon-left">
+                <view class="amount-wrap">
+                  <text class="icon-ticket">🎫</text>
+                </view>
+              </view>
+              <view class="coupon-right">
+                <text class="empty-title">暂无可用优惠券</text>
+                <text class="empty-desc">您目前没有任何优惠券</text>
+              </view>
+            </view>
+          </view>
+          <view class="coupon-list" :class="{ 'not-login': !isLogin }" v-else>
+            <view class="coupon-item" v-for="coupon in coupons.slice(0, 2)" :key="coupon.couponId">
               <view class="coupon-left">
                 <view class="amount-wrap">
                   <text class="symbol" v-if="coupon.type === 1">¥</text>
@@ -160,10 +174,14 @@ const goToCouponPage = () => {
                 <text class="condition">{{ coupon.threshold === 0.00 ? '无门槛' : `满${coupon.threshold}可用`  }}</text>
               </view>
               <view class="coupon-right">
-                <text class="type">{{ coupon.type === 1 ?  '满减券' : '无门槛' }}</text>
+                <text class="type">{{ coupon.type === 1 ?  '满减券' : '折扣券' }}</text>
                 <text class="date">有效期至：{{ formatTime(coupon.endTime) }}</text>
                 <view class="use-btn">立即使用</view>
               </view>
+            </view>
+            <!-- 当优惠券数量大于2时显示更多提示 -->
+            <view class="more-tip" v-if="coupons.length > 2" @tap="goToCouponPage">
+              <text>查看更多优惠券 (共{{ coupons.length }}张)</text>
             </view>
           </view>
         </view>
@@ -452,6 +470,11 @@ const goToCouponPage = () => {
         opacity: 0.3;
         pointer-events: none;
       }
+      
+      &.empty-state {
+        opacity: 1;
+        filter: none;
+      }
 
       .coupon-item {
         display: flex;
@@ -462,6 +485,28 @@ const goToCouponPage = () => {
         margin-bottom: 20rpx;
         position: relative;
         overflow: hidden;
+        
+        &.empty {
+          background: linear-gradient(45deg, rgba(240, 240, 240, 0.6), rgba(250, 250, 250, 0.8));
+          border: 1px dashed #e0e0e0;
+          
+          .icon-ticket {
+            font-size: 48rpx;
+            color: #cccccc;
+          }
+          
+          .empty-title {
+            font-size: 28rpx;
+            font-weight: 500;
+            color: #999;
+            margin-bottom: 8rpx;
+          }
+          
+          .empty-desc {
+            font-size: 22rpx;
+            color: #bbb;
+          }
+        }
 
         &::after {
           content: '';
@@ -547,6 +592,33 @@ const goToCouponPage = () => {
               box-shadow: 0 2rpx 6rpx rgba(18, 150, 219, 0.2);
             }
           }
+        }
+      }
+
+      .more-tip {
+        text-align: center;
+        padding: 16rpx 0;
+        color: #1296db;
+        font-size: 26rpx;
+        position: relative;
+        
+        &::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          right: 0;
+          top: 50%;
+          height: 1px;
+          background: #eee;
+          z-index: 0;
+        }
+        
+        text {
+          position: relative;
+          z-index: 1;
+          background: #fff;
+          padding: 0 20rpx;
+          opacity: 0.85;
         }
       }
     }

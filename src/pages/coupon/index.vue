@@ -167,7 +167,7 @@ const goBack = () => {
 // 跳转到点单页面
 const goToOrder = () => {
   uni.switchTab({
-    url: '/pages/menu/index'
+    url: '/pages/order/index'
   })
 }
 
@@ -313,6 +313,10 @@ onShow(() => {
   overflow: hidden;
   box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.05);
   transition: all 0.3s;
+
+  &:first-child {
+    margin-top: 30rpx;
+  }
   
   &::before {
     content: '';
