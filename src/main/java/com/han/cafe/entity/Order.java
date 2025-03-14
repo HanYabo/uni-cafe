@@ -10,8 +10,11 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 
 @Data
-@TableName("orders")
+@TableName("`orders`")
 public class Order {
+    /**
+     * 订单ID
+     */
     @TableId(type = IdType.INPUT)
     private String orderId;
     private Integer userId;

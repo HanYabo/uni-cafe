@@ -13,6 +13,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.han.cafe.entity.Coupon;
 import com.han.cafe.entity.Order;
 import com.han.cafe.entity.OrderItem;
@@ -31,6 +33,7 @@ import com.han.cafe.mapper.SpecValueMapper;
 import com.han.cafe.mapper.UserCouponMapper;
 import com.han.cafe.service.CouponService;
 import com.han.cafe.service.OrderService;
+import com.han.cafe.vo.AdminOrderDetailVO;
 import com.han.cafe.vo.CreateOrderRequest;
 import com.han.cafe.vo.OrderItemRequest;
 import com.han.cafe.vo.OrderItemResponse;
@@ -469,5 +472,57 @@ public class OrderServiceImpl implements OrderService {
             case 3 -> "已取消";
             default -> "未知状态";
         };
+    }
+
+    @Override
+    public IPage<AdminOrderDetailVO> getAdminOrderPage(Integer page, Integer size, Integer status) {
+        Page<AdminOrderDetailVO> pageParam = new Page<>(page, size);
+        return orderMapper.selectAdminOrderPage(pageParam, status);
+    }
+
+    @Override
+    public AdminOrderDetailVO getAdminOrderDetail(String orderId) {
+        AdminOrderDetailVO orderDetail = orderMapper.selectAdminOrderDetail(orderId);
+        if (orderDetail == null) {
+            throw new BusinessException("订单不存在");
+        }
+        return orderDetail;
+    }
+
+    @Override
+    @Transactional
+    public boolean updateOrderStatus(String orderId, Integer status) {
+        Order order = orderMapper.selectById(orderId);
+        if (order == null) {
+            throw new BusinessException("订单不存在");
+        }
+
+        // 检查状态变更是否合法
+        if (!isValidStatusChange(order.getStatus(), status)) {
+            throw new BusinessException("非法的状态变更");
+        }
+
+        order.setStatus(status);
+        order.setUpdatedAt(LocalDateTime.now());
+        return orderMapper.updateById(order) > 0;
+    }
+
+    /**
+     * 检查订单状态变更是否合法
+     */
+    private boolean isValidStatusChange(Integer currentStatus, Integer newStatus) {
+        // 待支付状态只能变更为已取消
+        if (currentStatus == 0 && newStatus != 3) {
+            return false;
+        }
+        // 已支付状态只能变更为已完成
+        if (currentStatus == 1 && newStatus != 2) {
+            return false;
+        }
+        // 已完成和已取消状态不能变更
+        if (currentStatus == 2 || currentStatus == 3) {
+            return false;
+        }
+        return true;
     }
 } 
