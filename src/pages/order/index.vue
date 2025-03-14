@@ -8,6 +8,8 @@ const categories = ref(null)
 
 const baseUrl = 'http://localhost:9000'
 
+// 添加刷新状态控制
+const refreshing = ref(false)
 
 // 添加页面返回标记
 const isPageReturning = ref(false)
@@ -19,11 +21,41 @@ onShow(async () => {
     isPageReturning.value = false
   }
   
-  await getCategoryWithProducts().then(res => {
-    categories.value = res.data
-  })
-  
+  await fetchCategoryData()
 })
+
+// 提取获取分类数据的方法
+const fetchCategoryData = async () => {
+  try {
+    const res = await getCategoryWithProducts()
+    categories.value = res.data
+    // 确保在数据加载后设置当前分类
+    if (categories.value && categories.value.length > 0) {
+      currentCategory.value = 0
+    }
+  } catch (error) {
+    console.error('获取分类数据失败:', error)
+    uni.showToast({
+      title: '获取分类数据失败',
+      icon: 'none'
+    })
+  }
+}
+
+// 添加处理下拉刷新的方法
+const handleRefresh = async () => {
+  refreshing.value = true
+  try {
+    await fetchCategoryData()
+  } catch (error) {
+    console.error('刷新数据失败:', error)
+  } finally {
+    // 延迟结束刷新状态，提供更好的用户体验
+    setTimeout(() => {
+      refreshing.value = false
+    }, 500)
+  }
+}
 
 // 添加重置商品详情的方法
 const resetProductDetail = () => {
@@ -661,7 +693,10 @@ const handleCheckout = () => {
     <!-- 主内容区 -->
     <view class="main-content" :style="contentStyle">
       <!-- 左侧分类导航 -->
-      <scroll-view scroll-y class="category-list">
+      <scroll-view 
+        scroll-y 
+        class="category-list"
+      >
         <view
           v-for="(item, index) in categories"
           :key="index"
@@ -680,6 +715,9 @@ const handleCheckout = () => {
           class="product-list" 
           :show-scrollbar="false"
           enhanced
+          refresher-enabled
+          :refresher-triggered="refreshing"
+          @refresherrefresh="handleRefresh"
         >
           <template v-if="categories && categories[currentCategory]">
             <view class="section-title">{{ categories[currentCategory].name }}</view>
@@ -1190,6 +1228,15 @@ const handleCheckout = () => {
     scrollbar-width: none !important;
     -ms-overflow-style: none !important;
     scrollbar-color: transparent transparent !important;
+
+    /* 下拉刷新相关样式 */
+    .uni-scroll-view-refresh {
+      background-color: #f7f7f7 !important;
+    }
+    
+    .uni-scroll-view-refresh__spinner {
+      color: #1296db !important;
+    }
 
     .section-title {
       font-size: 16px;

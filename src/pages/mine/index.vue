@@ -144,7 +144,7 @@ const goToCouponPage = () => {
       <view class="coupon-section">
         <view class="coupon-header">
           <text class="coupon-title">我的优惠券</text>
-          <text class="coupon-more" @tap="goToCouponPage" v-show="coupons.length === 0">查看全部 ></text>
+          <text class="coupon-more" @tap="goToCouponPage">查看全部 ></text>
         </view>
         <view class="coupon-content">
           <text v-if="!isLogin" class="login-tip">登录后查看优惠券</text>
