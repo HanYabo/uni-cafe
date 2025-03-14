@@ -43,6 +43,7 @@
       <view class="empty-tip" v-if="currentCoupons.length === 0">
         <image src="/static/mine/empty.png" class="empty-icon" />
         <text class="empty-text">暂无优惠券</text>
+        <view class="get-coupon-btn" @tap="goToOrder">去获取优惠券</view>
       </view>
       
       <!-- 优惠券列表 -->
@@ -93,7 +94,7 @@
     </scroll-view>
     
     <!-- 底部按钮 -->
-    <view class="bottom-btn" @tap="goToOrder">
+    <view class="bottom-btn" @tap="goToOrder" v-if="currentCoupons.length > 0">
       <text>去使用</text>
     </view>
   </view>
@@ -250,7 +251,7 @@ onShow(() => {
     transition: all 0.3s;
     
     &.active {
-      color: #000;
+      color: #1296db;
       font-weight: 500;
       
       &::after {
@@ -261,7 +262,7 @@ onShow(() => {
         transform: translateX(-50%);
         width: 30rpx;
         height: 3rpx;
-        background-color: #000;
+        background-color: #1296db;
         border-radius: 2rpx;
       }
     }
@@ -274,24 +275,40 @@ onShow(() => {
   height: calc(100vh - 44px - var(--status-bar-height) - 120rpx - 100rpx);
   display: flex;
   flex-direction: column;
+  position: relative;
   
   .empty-tip {
-    flex: 1;
+    position: absolute;
+    top: 40%;
+    left: calc(50% - 30rpx);
+    transform: translate(-50%, -50%);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    width: auto;
     
     .empty-icon {
       width: 240rpx;
       height: 240rpx;
       opacity: 0.6;
+      margin-bottom: 30rpx;
     }
     
     .empty-text {
       font-size: 28rpx;
       color: #999;
       font-weight: 400;
+      margin-bottom: 40rpx;
+    }
+    
+    .get-coupon-btn {
+      padding: 20rpx 40rpx;
+      background: linear-gradient(135deg, #1296db, #0f85c7);
+      color: #fff;
+      font-size: 28rpx;
+      border-radius: 40rpx;
+      box-shadow: 0 4rpx 12rpx rgba(18, 150, 219, 0.2);
     }
   }
 }

@@ -127,7 +127,7 @@ const goToCouponPage = () => {
             </view>
           </view>
           <view class="text">
-            <text class="username">{{ userInfo ? userInfo.nickName : 'Hello!' }}</text>
+            <text class="username">{{ userInfo ? userInfo.nickname : 'Hello!' }}</text>
             <text class="remind" v-if="!userInfo">登录享受更多精彩服务</text>
             <text class="welcome" v-else>欢迎回来，祝您用餐愉快~</text>
           </view>

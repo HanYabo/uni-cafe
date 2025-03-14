@@ -244,12 +244,55 @@ const handleContact = () => {
 }
 
 // 再来一单
-const handleReorder = () => {
-  uni.showToast({
-    title: '该功能开发中',
-    icon: 'none',
-    mask: true
-  })
+const handleReorder = async () => {
+  try {
+    // 获取订单详情（已经有order.value数据，可直接使用）
+    if (order.value) {
+      // 清空当前购物袋
+      uni.$emit('clearShoppingCart')
+      
+      // 跳转到点单页面
+      uni.switchTab({
+        url: '/pages/order/index',
+        success: () => {
+          // 使用延时确保页面加载完成后再添加商品
+          setTimeout(() => {
+            // 将订单中的商品添加到购物袋
+            uni.$emit('addItemsToCart', {
+              items: order.value.items.map(item => ({
+                productId: item.productId,
+                categoryId: item.categoryId,
+                name: item.name,
+                desc: item.specText || '',
+                unitPrice: item.price, // 单价
+                price: item.price,
+                quantity: item.quantity,
+                image: item.image,
+                specs: item.specs || [],
+                selected: true // 默认选中
+              }))
+            })
+            
+            uni.showToast({
+              title: '已将商品添加到购物袋',
+              icon: 'success'
+            })
+          }, 500)
+        }
+      })
+    } else {
+      uni.showToast({
+        title: '订单信息不完整',
+        icon: 'error'
+      })
+    }
+  } catch (error) {
+    console.error('再来一单失败:', error)
+    uni.showToast({
+      title: '操作失败，请重试',
+      icon: 'error'
+    })
+  }
 }
 
 // 立即支付
@@ -546,6 +589,10 @@ const getStatusDesc = (status) => {
     display: flex;
     margin-bottom: 16rpx;
     font-size: 28rpx;
+
+    &:first-child {
+      margin-top: 20rpx;
+    }
 
     &:last-child {
       margin-bottom: 0;

@@ -66,6 +66,12 @@ const isDescriptionExpanded = ref(false);
 // 添加商品数量控制
 const productQuantity = ref(1);
 
+// 添加一个计算属性，检查描述文本是否需要展开
+const isDescriptionTooLong = computed(() => {
+  // 如果描述文本超过50个字符，认为需要展开按钮
+  return currentProduct.description && currentProduct.description.length > 50;
+});
+
 onMounted(() => {
   try {
     // 获取系统信息
@@ -95,18 +101,38 @@ onMounted(() => {
 
   // 添加购物袋清空事件监听
   uni.$on('clearShoppingCart', handleClearCart)
+  
+  // 添加再来一单事件监听
+  uni.$on('addItemsToCart', handleAddItemsToCart)
 })
 
 // 添加页面卸载时的清理
 onUnmounted(() => {
   // 移除事件监听
   uni.$off('clearShoppingCart', handleClearCart)
+  
+  // 移除再来一单事件监听
+  uni.$off('addItemsToCart', handleAddItemsToCart)
 })
 
 // 处理清空购物袋的方法
 const handleClearCart = () => {
   cartItems.items = []
   isCartPanelVisible.value = false
+}
+
+// 处理再来一单添加商品的方法
+const handleAddItemsToCart = (data) => {
+  if (data && data.items && Array.isArray(data.items)) {
+    // 将传入的商品添加到购物袋
+    cartItems.items = [...data.items]
+    
+    // 计算并更新全选状态
+    allSelected.value = isAllSelected.value
+    
+    // 打开购物袋面板
+    isCartPanelVisible.value = true
+  }
 }
 
 // 计算店铺信息的位置和高度
@@ -747,7 +773,7 @@ const handleCheckout = () => {
             <text>合计：</text>
             <text class="price">¥{{ totalPrice }}</text>
           </view>
-          <view class="checkout-btn" @tap="buyNow">结算</view>
+          <view class="checkout-btn" @tap="handleCheckout">结算</view>
         </view>
       </view>
     </view>
@@ -771,7 +797,7 @@ const handleCheckout = () => {
             <text class="description-text" :class="{ expanded: isDescriptionExpanded }">
               {{ currentProduct.description }}
             </text>
-            <text class="toggle-btn" :class="{ expanded: isDescriptionExpanded }" @tap="toggleDescription">
+            <text v-if="isDescriptionTooLong" class="toggle-btn" :class="{ expanded: isDescriptionExpanded }" @tap="toggleDescription">
               {{ isDescriptionExpanded ? '收起' : '展开' }}
             </text>
           </view>
