@@ -5,16 +5,46 @@ import { computed, onMounted, reactive, ref } from 'vue'
 
 // 分类数据
 const categories = ref(null)
+// 添加骨架屏加载状态
+const isLoading = ref(true)
 
 const baseUrl = 'http://localhost:9000'
 
 
-onShow(() => {
-  getCategoryWithProducts().then(res => {
+// 添加页面返回标记
+const isPageReturning = ref(false)
+
+onShow(async () => {
+  // 如果是从确认订单页面返回，要确保重置商品详情
+  if (isPageReturning.value) {
+    resetProductDetail()
+    isPageReturning.value = false
+  }
+  
+  // 设置加载状态为true
+  isLoading.value = true
+  
+  await getCategoryWithProducts().then(res => {
     categories.value = res.data
+    // 数据加载完成，关闭骨架屏
+    isLoading.value = false
+  }).catch(err => {
+    console.error('获取分类和商品数据失败:', err)
   })
+  
 })
 
+// 添加重置商品详情的方法
+const resetProductDetail = () => {
+  // 关闭商品详情面板
+  isProductDetailVisible.value = false
+  // 重置商品数量
+  productQuantity.value = 1
+  // 清空当前商品数据
+  Object.keys(currentProduct).forEach(key => {
+    delete currentProduct[key]
+  })
+}
 
 const currentCategory = ref(0)
 const statusBarHeight = ref(0)
@@ -73,9 +103,17 @@ onMounted(() => {
   }
 })
 
+
 // 计算店铺信息的位置和高度
 const shopInfoStyle = computed(() => {
-  const menuButton = wx.getMenuButtonBoundingClientRect()
+  if (!menuButtonInfo.value) return {
+    top: `${statusBarHeight.value + navBarHeight.value}px`,
+    height: '120px',
+    paddingTop: '0',
+    paddingBottom: '12px',
+    boxSizing: 'border-box'
+  }
+  const menuButton = menuButtonInfo.value
   const navHeight = menuButton.height + (menuButton.top - statusBarHeight.value) * 2
   return {
     top: `${statusBarHeight.value + navHeight}px`,
@@ -88,11 +126,16 @@ const shopInfoStyle = computed(() => {
 
 // 计算主内容区域的样式
 const contentStyle = computed(() => {
-  const menuButton = wx.getMenuButtonBoundingClientRect()
+  if (!menuButtonInfo.value) return {
+    top: `${statusBarHeight.value + navBarHeight.value + 120}px`,
+    height: `calc(100vh - ${statusBarHeight.value + navBarHeight.value + 120 + 50}px)`,
+    boxSizing: 'border-box'
+  }
+  const menuButton = menuButtonInfo.value
   const navHeight = menuButton.height + (menuButton.top - statusBarHeight.value) * 2
-  const shopInfoHeight = 120 // 店铺信息高度
+  const shopInfoHeight = 120
   const topOffset = statusBarHeight.value + navHeight + shopInfoHeight
-  const cartHeight = 50 // 购物车高度
+  const cartHeight = 50
   const bottomSafeArea = safeAreaInsets.value.bottom || 0
 
   return {
@@ -116,7 +159,11 @@ const selectCategory = (id) => {
 
 // 添加导航栏相关的计算属性
 const navStyle = computed(() => {
-  const menuButton = wx.getMenuButtonBoundingClientRect()
+  if (!menuButtonInfo.value) return {
+    paddingTop: `${statusBarHeight.value}px`,
+    height: `${navBarHeight.value}px`
+  }
+  const menuButton = menuButtonInfo.value
   return {
     paddingTop: `${statusBarHeight.value}px`,
     height: `${menuButton.height + (menuButton.top - statusBarHeight.value) * 2}px`
@@ -124,7 +171,13 @@ const navStyle = computed(() => {
 })
 
 const navContentStyle = computed(() => {
-  const menuButton = wx.getMenuButtonBoundingClientRect()
+  if (!menuButtonInfo.value) return {
+    height: `${navBarHeight.value}px`,
+    lineHeight: `${navBarHeight.value}px`,
+    top: '0',
+    paddingRight: '12px'
+  }
+  const menuButton = menuButtonInfo.value
   return {
     height: `${menuButton.height}px`,
     lineHeight: `${menuButton.height}px`,
@@ -144,9 +197,12 @@ const switchDeliveryType = (type) => {
 
 // 添加搜索按钮位置计算
 const searchBtnStyle = computed(() => {
-  const menuButton = wx.getMenuButtonBoundingClientRect()
+  if (!menuButtonInfo.value) return {
+    right: '12px'
+  }
+  const menuButton = menuButtonInfo.value
   return {
-    right: `${menuButton.width + 24}px` // 24px 的安全距离
+    right: `${menuButton.width + 24}px`
   }
 })
 
@@ -174,7 +230,7 @@ const cartItems = reactive({
 
 // 计算总价函数，只计算选中的商品
 const totalPrice = computed(() => {
-  return cartItems.items.reduce((total, item) => total + (item.selected ? item.price * item.quantity : 0), 0);
+  return cartItems.items.reduce((total, item) => total + (item.selected ? item.unitPrice * item.quantity : 0), 0);
 });
 
 // 修改全选状态检测函数，确保对应使用selected属性
@@ -241,6 +297,8 @@ const openProductDetail = (product) => {
 // 关闭商品详情面板
 const closeProductDetail = () => {
   isProductDetailVisible.value = false;
+  // 重置商品数量，但保留商品数据以便再次打开面板时显示
+  productQuantity.value = 1;
 };
 
 // 选择规格
@@ -252,7 +310,7 @@ const selectOption = (spec, specValueId) => {
 const selectedPrice = computed(() => {
   if (!currentProduct.productId) return 0;
   
-  let totalPrice = currentProduct.basePrice || 0;
+  let unitPrice = currentProduct.basePrice || 0;
   
   // 计算所有规格的附加价格
   if (currentProduct.specs) {
@@ -262,12 +320,17 @@ const selectedPrice = computed(() => {
         (!spec.selectedValueId && v.isDefault)
       );
       if (selectedValue && selectedValue.extraPrice) {
-        totalPrice += selectedValue.extraPrice;
+        unitPrice += selectedValue.extraPrice;
       }
     });
   }
   
-  return totalPrice * productQuantity.value;
+  return unitPrice; // 只返回单价，不乘以数量
+});
+
+// 计算选中规格的总价（单价×数量）
+const selectedTotalPrice = computed(() => {
+  return selectedPrice.value * productQuantity.value;
 });
 
 // 计算已选规格文本
@@ -319,7 +382,8 @@ const addToCart = () => {
     categoryId: currentProduct.categoryId,
     name: currentProduct.name,
     desc: selectedSpecsText.value,
-    price: selectedPrice.value,
+    unitPrice: selectedPrice.value, // 单价
+    price: selectedTotalPrice.value / productQuantity.value, // 保持兼容性
     quantity: productQuantity.value,
     image: currentProduct.mainImage,
     selected: true,
@@ -334,7 +398,7 @@ const addToCart = () => {
 // 修改立即购买方法
 const buyNow = () => {
   if (!currentProduct.productId) return;
-
+  
   // 构造规格参数
   const specs = [];
   if (currentProduct.specs) {
@@ -377,7 +441,7 @@ const buyNow = () => {
         v.specValueId === spec.selectedValueId || 
         (!spec.selectedValueId && v.isDefault)
       );
-      return {
+  return {
         specId: spec.specId,
         specValueId: selectedValue.specValueId
       };
@@ -388,8 +452,11 @@ const buyNow = () => {
   uni.setStorageSync('orderData', orderData);
   uni.setStorageSync('orderItems', orderItems);
   
-  // 关闭详情面板
-  closeProductDetail();
+  // 重置商品详情数据
+  resetProductDetail();
+  
+  // 标记页面即将离开，准备后续返回
+  isPageReturning.value = true
   
   // 跳转到确认订单页面
   uni.navigateTo({
@@ -400,6 +467,26 @@ const buyNow = () => {
 // 切换商品描述展开状态
 const toggleDescription = () => {
   isDescriptionExpanded.value = !isDescriptionExpanded.value;
+};
+
+// 添加商品数量调整方法
+const changeProductQuantity = (change) => {
+  const newQuantity = productQuantity.value + change;
+  if (newQuantity < 1) {
+    uni.showToast({
+      title: '数量不能小于1',
+      icon: 'none'
+    });
+    return;
+  }
+  if (newQuantity > 99) {
+    uni.showToast({
+      title: '单次最多购买99件',
+      icon: 'none'
+    });
+    return;
+  }
+  productQuantity.value = newQuantity;
 };
 
 // 结算方法，携带购物车参数跳转到confirm页面
@@ -428,7 +515,7 @@ const handleCheckout = () => {
   // 获取选中的商品
   const selectedItems = cartItems.items.filter(item => item.selected);
   
-  // 构造orderData数据结构，包含所有选中的商品
+  // 构造订单数据
   const orderData = {
     products: selectedItems.map(item => ({
       productId: item.productId,
@@ -436,7 +523,7 @@ const handleCheckout = () => {
       name: item.name,
       desc: selectedSpecsText.value,
       specs: item.specs,
-      price: item.price,
+      price: item.unitPrice || item.price,
       quantity: item.quantity,
       image: item.image
     }))
@@ -456,6 +543,9 @@ const handleCheckout = () => {
   uni.setStorageSync('orderData', orderData);
   uni.setStorageSync('orderItems', orderItems);
   
+  // 标记页面即将离开，准备后续返回
+  isPageReturning.value = true;
+  
   // 跳转到确认订单页面
   uni.navigateTo({
     url: '/pages/order/confirm'
@@ -467,6 +557,66 @@ const handleCheckout = () => {
 
 <template>
   <view class="order-container">
+    <!-- 骨架屏组件 -->
+    <template v-if="isLoading">
+      <!-- 导航栏骨架 -->
+      <view class="skeleton-nav-bar" :style="navStyle">
+        <view class="skeleton-nav-content" :style="navContentStyle">
+          <view class="skeleton-logo"></view>
+          <view class="skeleton-search-btn"></view>
+        </view>
+      </view>
+      
+      <!-- 店铺信息骨架 -->
+      <view class="skeleton-shop-info" :style="shopInfoStyle">
+        <view class="skeleton-shop-header">
+          <view class="skeleton-shop-left">
+            <view class="skeleton-shop-name"></view>
+            <view class="skeleton-shop-distance"></view>
+          </view>
+          <view class="skeleton-shop-right">
+            <view class="skeleton-delivery-switch"></view>
+          </view>
+        </view>
+      </view>
+      
+      <!-- 主内容区骨架 -->
+      <view class="skeleton-main-content" :style="contentStyle">
+        <!-- 左侧分类导航骨架 -->
+        <view class="skeleton-category-list">
+          <view class="skeleton-category-item" v-for="i in 6" :key="i"></view>
+        </view>
+        
+        <!-- 右侧商品列表骨架 -->
+        <view class="skeleton-product-list">
+          <view class="skeleton-section-title"></view>
+          <view class="skeleton-product-item" v-for="i in 5" :key="i">
+            <view class="skeleton-product-image"></view>
+            <view class="skeleton-product-info">
+              <view class="skeleton-product-name"></view>
+              <view class="skeleton-product-desc"></view>
+              <view class="skeleton-product-tag"></view>
+              <view class="skeleton-product-bottom">
+                <view class="skeleton-price"></view>
+                <view class="skeleton-select-btn"></view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+      
+      <!-- 购物车栏骨架 -->
+      <view class="skeleton-cart-bar" :style="{ paddingBottom: safeAreaInsets.bottom + 'px' }">
+        <view class="skeleton-cart-left">
+          <view class="skeleton-cart-icon"></view>
+          <view class="skeleton-cart-total"></view>
+        </view>
+        <view class="skeleton-checkout-btn"></view>
+      </view>
+    </template>
+    
+    <!-- 实际内容 -->
+    <template v-else>
     <!-- 顶部导航栏 -->
     <view class="nav-bar" :style="navStyle">
       <view class="nav-content" :style="navContentStyle">
@@ -490,23 +640,24 @@ const handleCheckout = () => {
         <view class="left">
           <view class="shop-name">
             <view class="name-wrap">
-              <image src="/static/order/star.png" class="star-icon" mode="aspectFit" v-if="deliveryType === '自取'"/>
-              <text class="name" v-if="deliveryType === '自取'">{{ shopInfo.name }}</text>
-              <text class="name" v-else>收货地址</text>
+                <image src="/static/order/star.png" class="star-icon" mode="aspectFit" v-if="deliveryType === '自取'"/>
+                <text class="name" v-if="deliveryType === '自取'">{{ shopInfo.name }}</text>
+                <text class="name" v-else>收货地址</text>
               <text class="arrow">></text>
             </view>
-            <text class="distance" v-if="deliveryType === '自取'">距离您{{ shopInfo.distance }}</text>
-            <view class="address-info" v-else>
-              <text class="address">郑州市二七区正弘城店</text>
-              <text class="contact">张三 138****8888</text>
+              <text class="distance" v-if="deliveryType === '自取'">距离您{{ shopInfo.distance }}</text>
+              <view class="address-info" v-else>
+                <text class="address">郑州市二七区正弘城店</text>
+                <text class="contact">张三 138****8888</text>
           </view>
-          </view>
-          <view class="notice-wrap" v-show="deliveryType === '自取'">
+            </view>
+            <view class="notice-wrap" v-show="deliveryType === '自取'">
             <text class="notice" :class="{ 'expanded': isNoticeExpanded }">{{ shopInfo.notice }}</text>
           </view>
         </view>
         <view class="right">
           <view class="delivery-switch">
+              <view class="slider-bg" :class="{ 'slide-right': deliveryType === '外卖' }"></view>
             <text 
               :class="['switch-item', { active: deliveryType === '自取' }]"
               @tap="switchDeliveryType('自取')"
@@ -516,58 +667,63 @@ const handleCheckout = () => {
               @tap="switchDeliveryType('外卖')"
             >外卖</text>
           </view>
-          <text class="more" @tap="isNoticeExpanded = !isNoticeExpanded">
-            {{ isNoticeExpanded ? '收起' : '展开' }}
-          </text>
+            <text class="more" @tap="isNoticeExpanded = !isNoticeExpanded">
+              {{ isNoticeExpanded ? '收起' : '展开' }}
+            </text>
         </view>
       </view>
     </view>
 
     <!-- 主内容区 -->
-    <view class="main-content" :style="contentStyle">
+      <view class="main-content" :style="contentStyle">
       <!-- 左侧分类导航 -->
       <scroll-view scroll-y class="category-list">
         <view
-          v-for="(item, index) in categories"
-          :key="index"
+            v-for="(item, index) in categories"
+            :key="index"
           class="category-item"
-          :class="{ active: currentCategory === index }"
-          @tap="selectCategory(index)"
+            :class="{ active: currentCategory === index }"
+            @tap="selectCategory(index)"
         >
           {{ item.name }}
         </view>
       </scroll-view>
 
-      <!-- 右侧商品列表 - 使用遮罩层隐藏滚动条 -->
-      <view class="product-list-wrapper">
-        <scroll-view 
-          scroll-y 
-          class="product-list" 
-          :show-scrollbar="false"
-          enhanced
-        >
-        <view class="section-title">{{ categories[currentCategory].name }}</view>
-          <view class="product-item" v-for="product in categories[currentCategory].products" :key="product.productId" @tap="openProductDetail(product)">
-          <image :src="baseUrl.concat(product.mainImage)" class="product-image" mode="aspectFill" />
+        <!-- 右侧商品列表 - 使用遮罩层隐藏滚动条 -->
+        <view class="product-list-wrapper">
+          <scroll-view 
+            scroll-y 
+            class="product-list" 
+            :show-scrollbar="false"
+            enhanced
+          >
+            <template v-if="categories && categories[currentCategory]">
+              <view class="section-title">{{ categories[currentCategory].name }}</view>
+              <view class="product-item" v-for="product in categories[currentCategory].products" :key="product.productId" @tap="openProductDetail(product)">
+                <image :src="baseUrl.concat(product.mainImage)" class="product-image" mode="aspectFill" />
           <view class="product-info">
             <text class="product-name">{{ product.name }}</text>
-            <text class="product-desc">{{ product.description }}</text>
+                  <text class="product-desc">{{ product.description }}</text>
             <view class="tags">
-              <text class="tag">支持配送</text>
+                    <text class="tag">支持配送</text>
             </view>
             <view class="product-bottom">
               <view class="price">
                 <text class="symbol">¥</text>
-                <text class="number">{{ product.basePrice }}</text>
+                      <text class="number">{{ product.basePrice }}</text>
               </view>
-                <view class="select-btn" @tap.stop="openProductDetail(product)">选规格</view>
+                    <view class="select-btn" @tap.stop="openProductDetail(product)">选规格</view>
             </view>
           </view>
+              </view>
+            </template>
+            <view v-else class="loading-state">
+              <text>加载中...</text>
         </view>
       </scroll-view>
-        <!-- 添加遮罩层覆盖滚动条 -->
-        <view class="scrollbar-mask"></view>
-      </view>
+          <!-- 添加遮罩层覆盖滚动条 -->
+          <view class="scrollbar-mask"></view>
+        </view>
     </view>
 
     <!-- 购物车栏 -->
@@ -578,134 +734,139 @@ const handleCheckout = () => {
       }"
     >
       <view class="cart-left">
-        <view class="cart-icon" @tap="toggleCartPanel">
+          <view class="cart-icon" @tap="toggleCartPanel">
           <image src="/static/order/cart.png" mode="aspectFit" />
-          <text class="badge">{{ cartItems.items.length }}</text>
+            <text class="badge">{{ cartItems.items.length }}</text>
         </view>
-        <text class="total">¥{{ totalPrice }}</text>
+          <text class="total">¥{{ totalPrice }}</text>
       </view>
-      <view class="checkout-btn" @tap="handleCheckout">结算</view>
+        <view class="checkout-btn" @tap="handleCheckout">结算</view>
     </view>
 
-    <!-- 购物袋弹出面板 -->
-    <view class="cart-panel-container" :class="{ visible: isCartPanelVisible }" @tap="closeCartPanel">
-      <view class="cart-panel" @tap.stop>
-        <view class="panel-header">
-          <view class="select-all" @tap="toggleSelectAll">
-            <view class="checkbox" :class="{ checked: allSelected }">
-              <text class="check-icon" v-if="allSelected">✓</text>
-            </view>
-            <text>全选</text>
-          </view>
-          <view class="clear-cart" @tap="clearCart">
-            <text>清空购物袋</text>
-          </view>
-        </view>
-        
-        <scroll-view scroll-y class="cart-items">
-          <view class="cart-item" v-for="item in cartItems.items" :key="item.id">
-            <!-- 添加商品勾选框 -->
-            <view class="item-checkbox" @tap="toggleItemSelected(item)">
-              <view class="checkbox" :class="{ checked: item.selected }">
-                <text class="check-icon" v-if="item.selected">✓</text>
+      <!-- 购物袋弹出面板 -->
+      <view class="cart-panel-container" :class="{ visible: isCartPanelVisible }" @tap="closeCartPanel">
+        <view class="cart-panel" @tap.stop>
+          <view class="panel-header">
+            <view class="select-all" @tap="toggleSelectAll">
+              <view class="checkbox" :class="{ checked: allSelected }">
+                <text class="check-icon" v-if="allSelected">✓</text>
               </view>
+              <text>全选</text>
             </view>
-            <image class="product-image" :src="baseUrl.concat(item.image)" mode="aspectFill" />
-            <view class="product-info">
-              <text class="product-name">{{ item.name }}</text>
-              <text class="product-desc">{{ item.desc }}</text>
-              <view class="price-quantity">
-                <text class="price">¥{{ item.price }}</text>
-                <view class="quantity-control">
-                  <text class="minus" @tap="changeQuantity(item, -1)">－</text>
-                  <text class="quantity">{{ item.quantity }}</text>
-                  <text class="plus" @tap="changeQuantity(item, 1)">＋</text>
-                </view>
-              </view>
+            <view class="clear-cart" @tap="clearCart">
+              <text>清空购物袋</text>
             </view>
-          </view>
-        </scroll-view>
-
-        <view class="panel-footer">
-          <view class="total-price">
-            <text>合计：</text>
-            <text class="price">¥{{ totalPrice }}</text>
-          </view>
-          <view class="checkout-btn" @tap="buyNow">结算</view>
-        </view>
-      </view>
-    </view>
-
-    <!-- 商品详情面板 -->
-    <view class="product-detail-container" :class="{ visible: isProductDetailVisible }" @tap="closeProductDetail">
-      <view class="product-detail" @tap.stop>
-        <view class="detail-header">
-          <view class="product-basic">
-            <image :src="baseUrl.concat(currentProduct.mainImage)" class="product-image" mode="aspectFill" v-if="currentProduct" />
-            <view class="info">
-              <text class="name">{{ currentProduct?.name }}</text>
-            </view>
-          </view>
-          <view class="close-btn" @tap="closeProductDetail">×</view>
-        </view>
-        
-        <scroll-view scroll-y class="detail-content">
-          <!-- 修改商品描述部分 -->
-          <view class="product-description" v-if="currentProduct">
-            <text class="description-text" :class="{ expanded: isDescriptionExpanded }">
-              {{ currentProduct.description }}
-            </text>
-            <text class="toggle-btn" :class="{ expanded: isDescriptionExpanded }" @tap="toggleDescription">
-              {{ isDescriptionExpanded ? '收起' : '展开' }}
-            </text>
           </view>
           
-          <!-- 规格展示 -->
-          <view class="spec-section" v-for="spec in currentProduct.specs" :key="spec.specId">
-            <view class="section-title">{{ spec.name }}</view>
-            <view class="options-list">
-              <view 
-                v-for="value in spec.values" 
-                :key="value.specValueId" 
-                class="option-item"
-                :class="{ active: value.specValueId === spec.selectedValueId || (!spec.selectedValueId && value.isDefault) }"
-                @tap="selectOption(spec, value.specValueId)"
-              >
-                <text>{{ value.value }}</text>
-                <text v-if="value.extraPrice > 0" class="extra-price">+{{ value.extraPrice }}元</text>
-              </view>
-            </view>
-          </view>
-        </scroll-view>
-        
-        <view class="detail-footer">
-          <view class="selected-specs">
-            <view class="specs-content">
-              <view class="selected-items">
-                <view class="price-wrapper">
-                  <text class="symbol">¥</text>
-                  <text class="price">{{ selectedPrice }}</text>
-                </view>
-                <view class="quantity-control">
-                  <text 
-                    class="control-btn" 
-                    :class="{ disabled: productQuantity <= 1 }"
-                    @tap="changeProductQuantity(-1)"
-                  >-</text>
-                  <text class="quantity">{{ productQuantity }}</text>
-                  <text class="control-btn" @tap="changeProductQuantity(1)">+</text>
+          <scroll-view scroll-y class="cart-items">
+            <view class="cart-item" v-for="item in cartItems.items" :key="item.id">
+              <!-- 添加商品勾选框 -->
+              <view class="item-checkbox" @tap="toggleItemSelected(item)">
+                <view class="checkbox" :class="{ checked: item.selected }">
+                  <text class="check-icon" v-if="item.selected">✓</text>
                 </view>
               </view>
-              <text class="selected-specs-text">{{ selectedSpecsText }}</text>
+              <image class="product-image" :src="baseUrl.concat(item.image)" mode="aspectFill" />
+              <view class="product-info">
+                <text class="product-name">{{ item.name }}</text>
+                <text class="product-desc">{{ item.desc }}</text>
+                <view class="price-quantity">
+                  <text class="price">¥{{ item.unitPrice || item.price }}</text>
+                  <view class="quantity-control">
+                    <text 
+                      class="control-btn minus" 
+                      :class="{ disabled: item.quantity <= 1 }"
+                      @tap.stop="changeQuantity(item, -1)"
+                    >-</text>
+                    <text class="quantity">{{ item.quantity }}</text>
+                    <text class="control-btn plus" @tap.stop="changeQuantity(item, 1)">+</text>
+                  </view>
+                </view>
+              </view>
             </view>
-          </view>
-          <view class="footer-btns">
-            <view class="add-to-cart-btn" @tap="addToCart">加入购物车</view>
-            <view class="buy-now-btn" @tap="buyNow">立即购买</view>
+          </scroll-view>
+
+          <view class="panel-footer">
+            <view class="total-price">
+              <text>合计：</text>
+              <text class="price">¥{{ totalPrice }}</text>
+            </view>
+            <view class="checkout-btn" @tap="buyNow">结算</view>
           </view>
         </view>
       </view>
-    </view>
+
+      <!-- 商品详情面板 -->
+      <view class="product-detail-container" :class="{ visible: isProductDetailVisible }" @tap="closeProductDetail">
+        <view class="product-detail" @tap.stop>
+          <view class="detail-header">
+            <view class="product-basic">
+              <image :src="baseUrl.concat(currentProduct.mainImage)" class="product-image" mode="aspectFill" v-if="currentProduct" />
+              <view class="info">
+                <text class="name">{{ currentProduct?.name }}</text>
+              </view>
+            </view>
+            <view class="close-btn" @tap="closeProductDetail">×</view>
+          </view>
+          
+          <scroll-view scroll-y class="detail-content">
+            <!-- 修改商品描述部分 -->
+            <view class="product-description" v-if="currentProduct">
+              <text class="description-text" :class="{ expanded: isDescriptionExpanded }">
+                {{ currentProduct.description }}
+              </text>
+              <text class="toggle-btn" :class="{ expanded: isDescriptionExpanded }" @tap="toggleDescription">
+                {{ isDescriptionExpanded ? '收起' : '展开' }}
+              </text>
+            </view>
+            
+            <!-- 规格展示 -->
+            <view class="spec-section" v-for="spec in currentProduct.specs" :key="spec.specId">
+              <view class="section-title">{{ spec.name }}</view>
+              <view class="options-list">
+                <view 
+                  v-for="value in spec.values" 
+                  :key="value.specValueId" 
+                  class="option-item"
+                  :class="{ active: value.specValueId === spec.selectedValueId || (!spec.selectedValueId && value.isDefault) }"
+                  @tap="selectOption(spec, value.specValueId)"
+                >
+                  <text>{{ value.value }}</text>
+                  <text v-if="value.extraPrice > 0" class="extra-price">+{{ value.extraPrice }}元</text>
+                </view>
+              </view>
+            </view>
+          </scroll-view>
+          
+          <view class="detail-footer">
+            <view class="selected-specs">
+              <view class="specs-content">
+                <view class="selected-items">
+                  <view class="price-wrapper">
+                    <text class="symbol">¥</text>
+                    <text class="price">{{ selectedPrice }}</text>
+                  </view>
+                  <view class="quantity-control">
+                    <text 
+                      class="control-btn minus" 
+                      :class="{ disabled: productQuantity <= 1 }"
+                      @tap.stop="changeProductQuantity(-1)"
+                    >-</text>
+                    <text class="quantity">{{ productQuantity }}</text>
+                    <text class="control-btn plus" @tap.stop="changeProductQuantity(1)">+</text>
+                  </view>
+                </view>
+                <text class="selected-specs-text">{{ selectedSpecsText }}</text>
+              </view>
+            </view>
+            <view class="footer-btns">
+              <view class="add-to-cart-btn" @tap="addToCart">加入购物车</view>
+              <view class="buy-now-btn" @tap="buyNow">立即购买</view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </template>
   </view>
 </template>
 
@@ -883,19 +1044,42 @@ const handleCheckout = () => {
         border-radius: 20px;
         padding: 2px;
         order: -1; // 添加 order 属性，确保自取/外卖按钮在上方
+        position: relative; // 添加相对定位以便滑块定位
+
+        .slider-bg {
+          position: absolute;
+          left: 2px;
+          top: 2px;
+          width: calc(50% - 2px);
+          height: calc(100% - 4px);
+          background: #333;
+          border-radius: 16px;
+          transition: transform 0.3s ease;
+          z-index: 1;
+          
+          &.slide-right {
+            transform: translateX(100%);
+          }
+        }
+      }
 
         .switch-item {
           padding: 4px 16px;
           font-size: 13px;
           color: #666;
           border-radius: 16px;
-          transition: all 0.3s;
+        transition: all 0.3s ease;
           cursor: pointer;
+        outline: none; // 添加这一行移除焦点边框
+        -webkit-tap-highlight-color: transparent; // 添加这一行移除移动端点击高亮
+        position: relative; // 确保文字在滑块上方
+        z-index: 2; // 确保文字在滑块上方
+        flex: 1; // 确保两个按钮宽度相等
+        text-align: center; // 文字居中
 
           &.active {
-            background: #333;
-            color: #fff;
-          }
+          background: transparent; // 移除原来的背景
+          color: #fff; // 保持文字颜色为白色
         }
       }
 
@@ -1354,34 +1538,42 @@ const handleCheckout = () => {
             .quantity-control {
               display: flex;
               align-items: center;
-              border: 1px solid #eee;
-              border-radius: 4px;
-              overflow: hidden;
-              margin-left: 8px; // 与价格保持一定距离
-              flex-shrink: 0; // 防止被压缩
-
-              .minus, .plus {
+              gap: 12px;
+              
+              .control-btn {
                 width: 28px;
                 height: 28px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 14px;
-                color: #333;
-                background: #f7f7f7;
+                border: 1px solid #ddd;
+                border-radius: 50%;
+                color: #1296db;
+                font-size: 18px;
+                background: #f0f7fc; /* 更改为淡蓝色背景 */
+                transition: all 0.3s ease;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* 添加轻微阴影 */
+                
+                &:not(.disabled):active {
+                  background: #e0f0fa;
+                  transform: scale(0.95); /* 添加按下效果 */
+                }
+                
+                &.disabled {
+                  border-color: #eee;
+                  color: #ccc;
+                  background: #f8f8f8;
+                  box-shadow: none;
+                  pointer-events: none; /* 禁用点击 */
+                }
               }
-
+              
               .quantity {
-                width: 40px;
-                height: 28px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 14px;
+                font-size: 16px;
                 color: #333;
-                border-left: 1px solid #eee;
-                border-right: 1px solid #eee;
-                background: #fff; // 添加白色背景
+                min-width: 40px;
+                text-align: center;
+                font-weight: 500;
               }
             }
           }
@@ -1779,5 +1971,273 @@ const handleCheckout = () => {
       }
     }
   }
+}
+
+.loading-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  
+  text {
+    color: #999;
+    font-size: 14px;
+  }
+}
+
+/* 骨架屏样式 */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-nav-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  background-color: #fff;
+}
+
+.skeleton-nav-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 16px;
+}
+
+.skeleton-logo {
+  width: 120px;
+  height: 32px;
+  border-radius: 16px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-search-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-shop-info {
+  background-color: #fff;
+  margin-bottom: 10px;
+  padding: 16px;
+}
+
+.skeleton-shop-header {
+  display: flex;
+  justify-content: space-between;
+}
+
+.skeleton-shop-left {
+  flex: 1;
+}
+
+.skeleton-shop-name {
+  width: 140px;
+  height: 20px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  margin-bottom: 10px;
+}
+
+.skeleton-shop-distance {
+  width: 90px;
+  height: 16px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-shop-right {
+  width: 100px;
+}
+
+.skeleton-delivery-switch {
+  width: 100px;
+  height: 40px;
+  border-radius: 20px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-main-content {
+  display: flex;
+  background-color: #fff;
+}
+
+.skeleton-category-list {
+  width: 88px;
+  flex-shrink: 0;
+  background-color: #f8f8f8;
+  overflow-y: auto;
+  padding: 10px 0;
+}
+
+.skeleton-category-item {
+  width: 68px;
+  height: 45px;
+  margin: 8px auto;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-product-list {
+  flex: 1;
+  padding: 10px 16px;
+  overflow-y: auto;
+}
+
+.skeleton-section-title {
+  width: 120px;
+  height: 20px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  margin-bottom: 16px;
+}
+
+.skeleton-product-item {
+  display: flex;
+  padding: 12px 0;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.skeleton-product-image {
+  width: 80px;
+  height: 80px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.skeleton-product-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.skeleton-product-name {
+  width: 150px;
+  height: 18px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  margin-bottom: 8px;
+}
+
+.skeleton-product-desc {
+  width: 180px;
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  margin-bottom: 8px;
+}
+
+.skeleton-product-tag {
+  width: 60px;
+  height: 16px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  margin-bottom: 8px;
+}
+
+.skeleton-product-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.skeleton-price {
+  width: 70px;
+  height: 20px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-select-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-cart-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+  z-index: 99;
+}
+
+.skeleton-cart-left {
+  display: flex;
+  align-items: center;
+}
+
+.skeleton-cart-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  margin-right: 12px;
+}
+
+.skeleton-cart-total {
+  width: 80px;
+  height: 20px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.skeleton-checkout-btn {
+  width: 120px;
+  height: 40px;
+  border-radius: 20px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
 }
 </style>

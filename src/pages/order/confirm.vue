@@ -2,7 +2,7 @@
 import { getCouponListAPI } from '@/api/coupon';
 import { createOrder, payOrderAPI } from '@/api/order';
 import { formatTime } from '@/utils/format';
-import { onShow } from '@dcloudio/uni-app';
+import { onShow, onHide } from '@dcloudio/uni-app';
 import { computed, onMounted, ref } from 'vue';
 
 const baseUrl = 'http://localhost:9000';  // 本地后端服务地址
@@ -13,12 +13,11 @@ const orderInfo = ref({
   shop: {
     name: '郑州正弘城店',
     distance: '0.2公里',
-    phone: '15085968569'
   },
   address: {
-    name: '张三',
-    phone: '138****8888',
-    address: '广州市天河区融创购物中心1层',
+    name: '',
+    phone: '',
+    address: '',
     tag: '公司'
   },
   deliveryTime: '尽快送达（预计14:30送达）',
@@ -192,6 +191,10 @@ onMounted(() => {
 
 // 自动填写手机号
 const autoFill = () => {
+  const userInfo = uni.getStorageSync('userInfo');
+  if (userInfo) {
+    orderInfo.value.address.phone = userInfo.mobile;
+  }
 };
 
 // 模拟下单接口
@@ -206,12 +209,6 @@ const payOrder = async (orderId) => {
     // 清空购物车数据
     uni.removeStorageSync('orderItems');
     uni.removeStorageSync('orderData');
-    // 1.5秒后跳转到订单页面
-    setTimeout(() => {
-      uni.switchTab({
-        url: '/pages/record/index'
-      })
-    }, 1500)
   }else {
     uni.showToast({
       title: res.message,
@@ -312,7 +309,7 @@ const submitOrder = async () => {
       <view class="section-item">
         <text class="item-label">联系电话</text>
         <view class="item-content">
-          <text class="phone-number">{{ orderInfo.shop.phone }}</text>
+          <text class="phone-number">{{ orderInfo.address.phone }}</text>
           <view class="call-btn" @tap="autoFill">自动填写</view>
         </view>
       </view>

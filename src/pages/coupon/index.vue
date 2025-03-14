@@ -285,7 +285,6 @@ onShow(() => {
     .empty-icon {
       width: 240rpx;
       height: 240rpx;
-      margin-bottom: 30rpx;
       opacity: 0.6;
     }
     

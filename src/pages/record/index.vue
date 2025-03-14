@@ -3,6 +3,7 @@ import { cancelOrderAPI, deleteOrderAPI, getHistoryOrderAPI } from '@/api/order'
 import { formatTime } from '@/utils/format';
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
+import { payOrderAPI } from '../../api/order';
 
 // 订单状态枚举
 const OrderStatus = {
@@ -270,13 +271,27 @@ const handlePayOrAgain = (orderId, status) => {
     uni.showModal({
       title: '温馨提示',
       content: '确定要支付订单吗？',
-      success: (res) => {
+      success: async (res) => {
         if(res.confirm) {
-          // TODO: 执行支付操作
+          // 执行支付操作
+          const result = await payOrderAPI(orderId)
+          if(result.code === 200) {
+            uni.showToast({
+              title: '支付成功',
+              icon: 'success'
+            })
+            getHistoryOrderList()
+          }else {
+            uni.showToast({
+              title: '支付失败',
+              icon: 'error'
+            })
+          }
         }
       }
     })
   }
+  // TODO: 再来一单
 }
 
 // 跳转订单详情
