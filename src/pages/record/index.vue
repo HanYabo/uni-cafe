@@ -325,7 +325,7 @@ const reorderItems = async (orderId) => {
               items: orderDetail.items.map(item => ({
                 productId: item.productId,
                 name: item.productName,
-                desc: item.specs.map(spec => spec.specValue).join(',') || '',
+                desc: item.specs.map(spec => spec.specValue).join('，') || '',
                 unitPrice: item.actualPrice, // 单价
                 price: item.basePrice,
                 quantity: item.quantity,
@@ -333,11 +333,6 @@ const reorderItems = async (orderId) => {
                 specs: item.specs || [],
                 selected: true // 默认选中
               }))
-            })
-            
-            uni.showToast({
-              title: '已将商品添加到购物袋',
-              icon: 'success'
             })
           }, 500)
         }

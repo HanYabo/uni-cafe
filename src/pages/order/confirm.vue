@@ -475,6 +475,12 @@ const submitOrder = async () => {
         <text class="close" @click="hideCouponPanel">×</text>
       </view>
       <scroll-view scroll-y class="coupon-list">
+        <!-- 添加空状态提示 -->
+        <view class="coupon-empty" v-if="coupons.length === 0">
+          <text class="iconfont icon-coupon-empty">🎫</text>
+          <text class="empty-text">暂无可用优惠券</text>
+        </view>
+        <!-- 优惠券列表 -->
         <view 
           v-for="coupon in coupons" 
           :key="coupon.couponId"
@@ -1044,7 +1050,7 @@ const submitOrder = async () => {
   right: 0;
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.5);
-  z-index: 998;
+  z-index: 999;
 }
 
 .coupon-panel {
@@ -1053,56 +1059,65 @@ const submitOrder = async () => {
   right: 0;
   bottom: 0;
   background-color: #fff;
-  z-index: 999;
-  border-radius: 20px 20px 0 0;
+  border-radius: 16px 16px 0 0;
+  padding: 20px;
+  z-index: 1000;
   transform: translateY(100%);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  padding-bottom: env(safe-area-inset-bottom);
-  min-height: 65vh;
-  
+  transition: transform 0.3s ease-out;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+
   &.visible {
     transform: translateY(0);
   }
-  
+
   .panel-header {
-    padding: 20px 16px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid #f5f5f5;
-    position: relative;
-    
-    &::after {
-      content: '';
-      position: absolute;
-      left: 50%;
-      top: 8px;
-      transform: translateX(-50%);
-      width: 40px;
-      height: 4px;
-      background: #eee;
-      border-radius: 2px;
-    }
-    
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+
     .title {
       font-size: 16px;
-      font-weight: 600;
+      font-weight: bold;
       color: #333;
     }
-    
+
     .close {
       font-size: 24px;
       color: #999;
-      padding: 4px 8px;
-      line-height: 1;
+      padding: 0 10px;
     }
   }
-  
+
   .coupon-list {
-    max-height: calc(65vh - 60px);
-    padding: 16px;
-    box-sizing: border-box;
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px 0;
     
+    // 空状态样式
+    .coupon-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 0;
+      
+      .icon-coupon-empty {
+        font-size: 48px;
+        color: #cccccc;
+        margin-bottom: 16px;
+      }
+      
+      .empty-text {
+        font-size: 16px;
+        color: #999999;
+        margin-bottom: 24px;
+      }
+    }
+
     .coupon-item {
       display: flex;
       margin-bottom: 12px;

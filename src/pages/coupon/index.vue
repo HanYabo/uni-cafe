@@ -43,7 +43,6 @@
       <view class="empty-tip" v-if="currentCoupons.length === 0">
         <image src="/static/mine/empty.png" class="empty-icon" />
         <text class="empty-text">暂无优惠券</text>
-        <view class="get-coupon-btn" @tap="goToOrder">去获取优惠券</view>
       </view>
       
       <!-- 优惠券列表 -->
@@ -300,15 +299,6 @@ onShow(() => {
       color: #999;
       font-weight: 400;
       margin-bottom: 40rpx;
-    }
-    
-    .get-coupon-btn {
-      padding: 20rpx 40rpx;
-      background: linear-gradient(135deg, #1296db, #0f85c7);
-      color: #fff;
-      font-size: 28rpx;
-      border-radius: 40rpx;
-      box-shadow: 0 4rpx 12rpx rgba(18, 150, 219, 0.2);
     }
   }
 }

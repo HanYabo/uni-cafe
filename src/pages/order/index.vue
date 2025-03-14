@@ -315,6 +315,8 @@ const changeQuantity = (item, change) => {
 // 清空购物袋
 const clearCart = () => {
   cartItems.items = [];
+  uni.removeStorageSync('orderData')
+  uni.removeStorageSync('orderItems')
   closeCartPanel();
 };
 
