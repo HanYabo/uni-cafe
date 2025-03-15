@@ -383,17 +383,20 @@ const goToCouponPage = () => {
 
     .btn {
       background: linear-gradient(135deg, #1296db, #0f85c7);
-      border-radius: 28rpx;
-      padding: 10rpx 28rpx;
-      font-size: 26rpx;
+      border-radius: 999rpx;
+      padding: 16rpx 42rpx;
+      font-size: 28rpx;
       color: #fff;
       font-weight: 500;
-      box-shadow: 0 4rpx 12rpx rgba(18, 150, 219, 0.2);
+      box-shadow: 0 6rpx 16rpx rgba(18, 150, 219, 0.15);
       transition: all 0.3s ease;
+      line-height: 1.4;
+      letter-spacing: 2rpx;
       
       &:active {
-        transform: scale(0.98);
-        box-shadow: 0 2rpx 6rpx rgba(18, 150, 219, 0.2);
+        transform: scale(0.97);
+        box-shadow: 0 2rpx 8rpx rgba(18, 150, 219, 0.2);
+        opacity: 0.92;
       }
     }
   }

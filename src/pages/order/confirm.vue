@@ -7,21 +7,17 @@ import { computed, onMounted, ref } from 'vue';
 
 const baseUrl = 'http://localhost:9000';  // 本地后端服务地址
 
-// TODO: 后续需要修改
+const userInfo = uni.getStorageSync('userInfo');
+
+// 添加手机号输入变量，初始化为用户已有手机号
+const inputPhoneNumber = ref(userInfo?.mobile || '');
+
 const orderInfo = ref({
   products: [],
   shop: {
     name: '郑州正弘城店',
     distance: '0.2公里',
   },
-  address: {
-    name: '',
-    phone: '',
-    address: '',
-    tag: '公司'
-  },
-  deliveryTime: '尽快送达（预计14:30送达）',
-  pickupTime: '前面1杯/杯制作中，预计32分钟取餐',
   payMethod: '微信支付',
   note: ''
 });
@@ -78,7 +74,14 @@ const hideCouponPanel = () => {
 const selectCoupon = (coupon) => {
   // 如果优惠券状态为1或者商品总价未达到使用门槛，则不可选择
   if (coupon.status === 1 || totalPrice.value < coupon.threshold) return
-  selectedCoupon.value = coupon
+  
+  // 如果点击的是已选中的优惠券，则取消选择
+  if (selectedCoupon.value && selectedCoupon.value.couponId === coupon.couponId) {
+    selectedCoupon.value = null
+  } else {
+    selectedCoupon.value = coupon
+  }
+  
   hideCouponPanel()
 }
 
@@ -191,9 +194,27 @@ onMounted(() => {
 
 // 自动填写手机号
 const autoFill = () => {
-  const userInfo = uni.getStorageSync('userInfo');
   if (userInfo) {
-    orderInfo.value.address.phone = userInfo.mobile;
+    inputPhoneNumber.value = userInfo.mobile || '';
+  }
+};
+
+// 添加手机号输入完成后的验证
+const validatePhone = () => {
+  // 验证手机号格式
+  const phoneRegex = /^1[3-9]\d{9}$/;
+  if (inputPhoneNumber.value && !phoneRegex.test(inputPhoneNumber.value)) {
+    uni.showToast({
+      title: '请输入正确的手机号',
+      icon: 'none'
+    });
+    return;
+  }
+  
+  // 更新本地存储的用户信息
+  if (userInfo) {
+    userInfo.mobile = inputPhoneNumber.value;
+    uni.setStorageSync('userInfo', userInfo);
   }
 };
 
@@ -334,10 +355,17 @@ const submitOrder = async () => {
     
     <!-- 联系电话 -->
     <view class="section contact-section">
-      <view class="section-item">
+      <view class="section-item contact-item">
         <text class="item-label">联系电话</text>
         <view class="item-content">
-          <text class="phone-number">{{ orderInfo.address.phone }}</text>
+          <input 
+            type="number" 
+            class="phone-number phone-input" 
+            v-model="inputPhoneNumber" 
+            placeholder="请输入手机号"
+            maxlength="11"
+            @blur="validatePhone"
+          />
           <view class="call-btn" @tap="autoFill">自动填写</view>
         </view>
       </view>
@@ -541,6 +569,8 @@ const submitOrder = async () => {
   font-size: 14px;
   color: #333333;
   font-weight: 500;
+  flex-shrink: 0;
+  min-width: 65px;
 }
 
 // 店铺信息样式
@@ -616,14 +646,42 @@ const submitOrder = async () => {
 
 // 联系电话样式
 .contact-section {
+  .contact-item {
+    padding-right: 12px;
+  }
+  
   .item-content {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
+    flex: 1;
     
     .phone-number {
       font-size: 14px;
       color: #666666;
       margin-right: 12px;
+    }
+    
+    .phone-input {
+      border: none;
+      border-bottom: 1px solid #eee;
+      padding: 4px 0;
+      width: 130px;
+      background-color: transparent;
+      text-align: right;
+      padding-right: 10px;
+      margin-left: auto;
+      color: #333;
+      
+      &::placeholder {
+        color: #999;
+        font-size: 13px;
+      }
+      
+      &:focus {
+        border-bottom-color: #1296db;
+        outline: none;
+      }
     }
     
     .call-btn {
@@ -632,6 +690,8 @@ const submitOrder = async () => {
       color: #1296db;
       border: 1px solid #1296db;
       border-radius: 12px;
+      margin-left: 8px;
+      white-space: nowrap;
     }
   }
 }

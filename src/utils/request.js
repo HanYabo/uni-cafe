@@ -37,7 +37,7 @@ const responseInterceptor = (response) => {
     return data
   }
   
-  // 处理错误情况
+  // TODO: 处理错误情况
   if (statusCode === 401) {
     // token过期，清除本地存储并跳转到登录页
     wx.clearStorageSync()

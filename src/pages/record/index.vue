@@ -2,7 +2,7 @@
 import { cancelOrderAPI, deleteOrderAPI, getHistoryOrderAPI, getOrderDetailAPI } from '@/api/order';
 import { formatTime } from '@/utils/format';
 import { onLoad, onShow } from '@dcloudio/uni-app';
-import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
 import { payOrderAPI } from '../../api/order';
 
 // 订单状态枚举
@@ -13,6 +13,15 @@ const OrderStatus = {
   COMPLETED: 2,     // 已完成
   CANCELLED: 3      // 已取消
 }
+
+// 添加刷新状态控制
+const refreshing = ref(false)
+
+// 添加触底加载相关状态
+const isLoadingMore = ref(false)
+const hasMoreData = ref(true)
+const currentPage = ref(1)
+const pageSize = ref(10)
 
 // 订单数据
 const orders = ref([])
@@ -133,14 +142,33 @@ onUnmounted(() => {
 })
 
 // 获取订单列表
-const getHistoryOrderList = async () => {
-  // 重新获取用户信息，确保是最新的
-  const userInfo = uni.getStorageSync('userInfo')
+const getHistoryOrderList = async (isRefresh = false) => {
+  // 添加加载状态指示
+  if (!isRefresh) {
+    uni.showLoading({
+      title: '加载中...'
+    })
+  }
+  
   try {
-    const res = await getHistoryOrderAPI(userInfo.userId)
+    // 重新获取用户信息，确保是最新的
+    const userInfo = uni.getStorageSync('userInfo')
+    if (!userInfo) {
+      // 用户未登录，提前返回并关闭加载状态
+      if (!isRefresh) {
+        uni.hideLoading()
+      }
+      return
+    }
+    
+    const res = await getHistoryOrderAPI(userInfo.userId, {
+      page: currentPage.value,
+      pageSize: pageSize.value
+    })
+    
     if(res.code === 200) {
-      // 确保数据结构正确
-      orders.value = res.data.map(order => ({
+      // 处理返回的订单数据
+      const newOrders = res.data.map(order => ({
         orderId: order.orderId,
         userId: order.userId,
         couponId: order.couponId,
@@ -163,6 +191,16 @@ const getHistoryOrderList = async () => {
         }))
       }))
 
+      // 如果是刷新，则替换整个列表，否则追加
+      if (isRefresh) {
+        orders.value = newOrders
+      } else {
+        orders.value = [...orders.value, ...newOrders]
+      }
+
+      // 判断是否还有更多数据
+      hasMoreData.value = newOrders.length === pageSize.value
+
       // 为待支付订单设置倒计时
       orders.value.forEach(order => {
         if (order.status === OrderStatus.WAITING_PAY) {
@@ -181,6 +219,11 @@ const getHistoryOrderList = async () => {
       title: '获取订单列表失败',
       icon: 'none'
     })
+  } finally {
+    // 隐藏加载状态 - 确保无论成功失败都关闭loading
+    if (!isRefresh) {
+      uni.hideLoading()
+    }
   }
 }
 
@@ -214,22 +257,53 @@ const handleCancelOrDelete = (orderId, status) => {
       content: '确定要取消订单吗？',
       success: async (res) => {
         if(res.confirm) {
-          const result = await cancelOrderAPI(orderId)
-          if(result.code === 200) {
+          try {
+            uni.showLoading({ title: '处理中...' })
+            const result = await cancelOrderAPI(orderId)
+            if(result.code === 200) {
+              // 直接更新本地订单状态，提供即时反馈
+              const orderIndex = orders.value.findIndex(order => order.orderId === orderId)
+              if (orderIndex !== -1) {
+                orders.value[orderIndex] = {
+                  ...orders.value[orderIndex],
+                  status: OrderStatus.CANCELLED
+                }
+              }
+              
+              uni.showToast({
+                title: '订单取消成功',
+                icon: 'success'
+              })
+              
+              // 发送事件通知其他页面
+              uni.$emit('orderStatusChanged', {
+                orderId: orderId,
+                status: OrderStatus.CANCELLED
+              })
+              
+              // 重新获取订单列表以确保数据一致性
+              await getHistoryOrderList(true)
+            } else {
+              uni.showToast({
+                title: '取消订单失败', 
+                icon: 'error'
+              })
+            }
+          } catch (error) {
+            console.error('取消订单失败:', error)
             uni.showToast({
-              title: '订单取消成功',
-              icon: 'success'
+              title: '操作失败，请重试',
+              icon: 'none'
             })
-            // 取消成功后，等待DOM更新后重新获取订单列表
-            await nextTick()
-            getHistoryOrderList()
-          }else {
-            uni.showToast({
-              title: '取消订单失败', 
-              icon: 'error'
-            })
+          } finally {
+            // 确保无论成功失败都关闭loading
+            uni.hideLoading()
           }
         }
+      },
+      // 添加fail回调处理弹窗失败情况
+      fail: () => {
+        console.error('取消订单对话框显示失败')
       }
     })
   } else if(status === OrderStatus.PROCESSING) {
@@ -243,22 +317,41 @@ const handleCancelOrDelete = (orderId, status) => {
       content: '确定要删除订单吗？',
       success: async (res) => {
         if(res.confirm) {
-          const result = await deleteOrderAPI(orderId)
-          if(result.code === 200) {
+          try {
+            uni.showLoading({ title: '处理中...' })
+            const result = await deleteOrderAPI(orderId)
+            if(result.code === 200) {
+              // 直接从本地列表中移除订单，提供即时反馈
+              orders.value = orders.value.filter(order => order.orderId !== orderId)
+              
+              uni.showToast({
+                title: '订单删除成功',
+                icon: 'success'
+              })
+              
+              // 重新获取订单列表以确保数据一致性
+              await getHistoryOrderList(true)
+            } else {
+              uni.showToast({
+                title: '订单删除失败',
+                icon: 'error'
+              }) 
+            }
+          } catch (error) {
+            console.error('删除订单失败:', error)
             uni.showToast({
-              title: '订单删除成功',
-              icon: 'success'
+              title: '操作失败，请重试',
+              icon: 'none'
             })
-            // 删除成功后，等待DOM更新后重新获取订单列表
-            await nextTick()
-            getHistoryOrderList()
-          }else {
-            uni.showToast({
-              title: '订单删除失败',
-              icon: 'error'
-            }) 
+          } finally {
+            // 确保无论成功失败都关闭loading
+            uni.hideLoading()
           }
         }
+      },
+      // 添加fail回调处理弹窗失败情况
+      fail: () => {
+        console.error('删除订单对话框显示失败')
       }
     })
   }
@@ -273,28 +366,61 @@ const handlePayOrAgain = (orderId, status) => {
       content: '确定要支付订单吗？',
       success: async (res) => {
         if(res.confirm) {
-          // 执行支付操作
-          const result = await payOrderAPI(orderId)
-          if(result.code === 200) {
-            // 发送清空购物袋事件
-            uni.$emit('clearShoppingCart');
-            
+          try {
+            uni.showLoading({ title: '处理中...' })
+            // 执行支付操作
+            const result = await payOrderAPI(orderId)
+            if(result.code === 200) {
+              // 直接更新本地订单状态，提供即时反馈
+              const orderIndex = orders.value.findIndex(order => order.orderId === orderId)
+              if (orderIndex !== -1) {
+                orders.value[orderIndex] = {
+                  ...orders.value[orderIndex],
+                  status: OrderStatus.PROCESSING,
+                  payTime: new Date().toISOString()
+                }
+              }
+              
+              // 发送清空购物袋事件
+              uni.$emit('clearShoppingCart')
+              
+              // 发送事件通知其他页面
+              uni.$emit('orderStatusChanged', {
+                orderId: orderId,
+                status: OrderStatus.PROCESSING
+              })
+              
+              uni.showToast({
+                title: '支付成功',
+                icon: 'success'
+              })
+              
+              uni.removeStorageSync('orderData')
+              uni.removeStorageSync('orderItems')
+              
+              // 重新获取订单列表以确保数据一致性
+              await getHistoryOrderList(true)
+            } else {
+              uni.showToast({
+                title: '支付失败',
+                icon: 'error'
+              })
+            }
+          } catch (error) {
+            console.error('支付订单失败:', error)
             uni.showToast({
-              title: '支付成功',
-              icon: 'success'
+              title: '操作失败，请重试',
+              icon: 'none'
             })
-
-            uni.removeStorageSync('orderData')
-            uni.removeStorageSync('orderItems')
-
-            getHistoryOrderList()
-          }else {
-            uni.showToast({
-              title: '支付失败',
-              icon: 'error'
-            })
+          } finally {
+            // 确保无论成功失败都关闭loading
+            uni.hideLoading()
           }
         }
+      },
+      // 添加fail回调处理弹窗失败情况
+      fail: () => {
+        console.error('支付订单对话框显示失败')
       }
     })
   } else {
@@ -305,6 +431,7 @@ const handlePayOrAgain = (orderId, status) => {
 
 // 实现再来一单功能
 const reorderItems = async (orderId) => {
+  uni.showLoading({ title: '正在加载订单...' })
   try {
     // 获取订单详情
     const res = await getOrderDetailAPI(orderId)
@@ -349,6 +476,9 @@ const reorderItems = async (orderId) => {
       title: '操作失败，请重试',
       icon: 'error'
     })
+  } finally {
+    // 确保无论成功失败都关闭loading
+    uni.hideLoading()
   }
 }
 
@@ -359,8 +489,48 @@ const goToDetail = (orderId) => {
   })
 }
 
+// 添加处理下拉刷新的方法
+const handleRefresh = async () => {
+  refreshing.value = true
+  try {
+    // 重置分页参数
+    currentPage.value = 1
+    hasMoreData.value = true
+    await getHistoryOrderList(true)
+  } catch (error) {
+    console.error('刷新订单列表失败:', error)
+  } finally {
+    // 延迟结束刷新状态，提供更好的用户体验
+    setTimeout(() => {
+      refreshing.value = false
+    }, 500)
+  }
+}
+
+// 添加触底加载更多方法
+const handleLoadMore = async () => {
+  // 如果正在加载或没有更多数据，则不执行加载
+  if (isLoadingMore.value || !hasMoreData.value) return
+  
+  isLoadingMore.value = true
+  try {
+    // 页码加1
+    currentPage.value += 1
+    await getHistoryOrderList(false)
+  } catch (error) {
+    console.error('加载更多订单失败:', error)
+    // 加载失败时，页码恢复
+    currentPage.value -= 1
+  } finally {
+    // 延迟结束加载状态
+    setTimeout(() => {
+      isLoadingMore.value = false
+    }, 500)
+  }
+}
+
 onShow(() => {
-  // 每次显示页面时重新获取用户信息
+  // 每次显示页面时获取用户信息并判断登录状态
   const userInfo = uni.getStorageSync('userInfo')
   // 判断用户登陆状态 然后弹窗让用户选择去登录
   if(!userInfo) {
@@ -376,7 +546,9 @@ onShow(() => {
       }
     })
   } else {
-    getHistoryOrderList()
+    // 重置页面并刷新数据
+    currentPage.value = 1
+    getHistoryOrderList(true)
   }
 })
 
@@ -398,7 +570,17 @@ onShow(() => {
     </view>
 
     <!-- 订单列表 -->
-    <scroll-view scroll-y class="order-list">
+    <scroll-view 
+      scroll-y 
+      class="order-list"
+      refresher-enabled
+      :refresher-triggered="refreshing"
+      @refresherrefresh="handleRefresh"
+      :show-scrollbar="false"
+      enhanced
+      @scrolltolower="handleLoadMore"
+      lower-threshold="100"
+    >
       <view class="order-item" v-for="(order, index) in filteredOrders" :key="index">
         <!-- 订单头部 -->
         <view class="order-header">
@@ -439,6 +621,26 @@ onShow(() => {
             </view>
           </view>
         </view>
+      </view>
+      
+      <!-- 底部加载状态 -->
+      <view class="loading-more" v-if="filteredOrders.length > 0">
+        <view v-if="isLoadingMore" class="loading">
+          <view class="loading-spinner"></view>
+          <text>加载中...</text>
+        </view>
+        <view v-else-if="!hasMoreData" class="no-more">
+          <text>已经到底啦~</text>
+        </view>
+        <view v-else class="pull-tip">
+          <text>上拉加载更多</text>
+        </view>
+      </view>
+      
+      <!-- 无订单状态 -->
+      <view v-if="filteredOrders.length === 0" class="empty-state">
+        <image src="/static/record/empty.png" mode="aspectFit" class="empty-image" />
+        <text class="empty-text">暂无相关订单</text>
       </view>
     </scroll-view>
   </view>
@@ -490,6 +692,80 @@ onShow(() => {
     padding-top: 120rpx;
     width: 92%;
     margin: 0 auto;
+    -webkit-overflow-scrolling: touch;
+    
+    /* 隐藏滚动条但保持可滚动 */
+    &::-webkit-scrollbar {
+      width: 0 !important;
+      display: none !important;
+      background: transparent !important;
+    }
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+    scrollbar-color: transparent transparent !important;
+    
+    /* 下拉刷新相关样式 */
+    .uni-scroll-view-refresh {
+      background-color: #f7f7f7 !important;
+    }
+    
+    .uni-scroll-view-refresh__spinner {
+      color: #1296db !important;
+    }
+
+    /* 底部加载状态样式 */
+    .loading-more {
+      padding: 20rpx 0;
+      text-align: center;
+      
+      .loading {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        
+        .loading-spinner {
+          width: 30rpx;
+          height: 30rpx;
+          border: 3rpx solid #1296db;
+          border-radius: 50%;
+          border-top-color: transparent;
+          animation: spin 0.8s linear infinite;
+          margin-right: 10rpx;
+        }
+        
+        text {
+          font-size: 24rpx;
+          color: #666;
+        }
+      }
+      
+      .no-more, .pull-tip {
+        font-size: 24rpx;
+        color: #999;
+        line-height: 40rpx;
+      }
+    }
+    
+    /* 空状态样式 */
+    .empty-state {
+      padding: 100rpx 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      
+      .empty-image {
+        width: 180rpx;
+        height: 180rpx;
+        margin-bottom: 20rpx;
+        opacity: 0.7;
+      }
+      
+      .empty-text {
+        font-size: 28rpx;
+        color: #999;
+      }
+    }
 
     .order-item {
       width: 100%;
@@ -622,5 +898,14 @@ onShow(() => {
 
 .btn-pay {
   background: #ff6b00 !important;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 </style>

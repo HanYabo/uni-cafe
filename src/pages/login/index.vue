@@ -163,7 +163,6 @@ const handleWechatLogin = async () => {
     
   } catch (error) {
     uni.hideLoading()
-    console.error('微信登录失败', error)
     
     if (error.errMsg?.includes('getUserProfile:fail')) {
       uni.showToast({
@@ -192,7 +191,6 @@ const handleLoginSuccess = (result) => {
   uni.setStorageSync('token', result.token)
   uni.setStorageSync('userInfo', result.userInfo)
   
-  console.log('登录成功，发送事件通知其他页面')
   
   // 发送登录成功事件，通知其他页面刷新数据
   uni.$emit('loginSuccess')
@@ -206,10 +204,8 @@ const handleLoginSuccess = (result) => {
   
   // 延迟返回上一页
   setTimeout(() => {
-    console.log('登录成功，准备返回上一页')
     uni.navigateBack({
       success: () => {
-        console.log('成功返回上一页')
         // 再次通知刷新，确保不会错过
         setTimeout(() => {
           uni.$emit('loginSuccess')

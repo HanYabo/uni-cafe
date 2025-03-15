@@ -98,7 +98,7 @@
 </template>
 
 <script setup>
-import { getOrderDetailAPI } from '@/api/order';
+import { cancelOrderAPI, getOrderDetailAPI, payOrderAPI } from '@/api/order';
 import { formatTime } from '@/utils/format';
 import { onLoad, onShow, onUnload } from '@dcloudio/uni-app';
 import { ref } from 'vue';
@@ -296,12 +296,52 @@ const handleReorder = async () => {
 }
 
 // 立即支付
-const handlePay = () => {
-  // TODO: 处理支付逻辑
-  uni.showToast({
-    title: '正在前往支付...',
-    icon: 'none'
-  })
+const handlePay = async () => {
+  try {
+    uni.showLoading({ title: '处理中...' })
+    
+    // 调用支付API
+    const result = await payOrderAPI(orderId.value)
+    if(result.code === 200) {
+      // 更新本地订单状态
+      order.value = {
+        ...order.value,
+        status: OrderStatus.PROCESSING,
+        payTime: new Date().toISOString()
+      }
+      
+      // 清除定时器
+      if (timer) {
+        clearInterval(timer)
+        timer = null
+        countdown.value = ''
+      }
+      
+      // 发送事件通知列表页刷新
+      uni.$emit('orderStatusChanged', {
+        orderId: orderId.value,
+        status: OrderStatus.PROCESSING
+      })
+      
+      uni.showToast({
+        title: '支付成功',
+        icon: 'success'
+      })
+    } else {
+      uni.showToast({
+        title: '支付失败: ' + (result.message || '未知错误'),
+        icon: 'none'
+      })
+    }
+  } catch (error) {
+    console.error('支付失败:', error)
+    uni.showToast({
+      title: '支付失败，请重试',
+      icon: 'none'
+    })
+  } finally {
+    uni.hideLoading()
+  }
 }
 
 // 取消订单
@@ -311,11 +351,50 @@ const handleCancel = () => {
     content: '确定要取消该订单吗？',
     success: async (res) => {
       if (res.confirm) {
-        // TODO: 调用取消订单API
-        uni.showToast({
-          title: '订单已取消',
-          icon: 'success'
-        })
+        try {
+          uni.showLoading({ title: '处理中...' })
+          
+          // 调用取消订单API
+          const result = await cancelOrderAPI(orderId.value)
+          if(result.code === 200) {
+            // 更新本地订单状态
+            order.value = {
+              ...order.value,
+              status: OrderStatus.CANCELLED
+            }
+            
+            // 清除定时器
+            if (timer) {
+              clearInterval(timer)
+              timer = null
+              countdown.value = ''
+            }
+            
+            // 发送事件通知列表页刷新
+            uni.$emit('orderStatusChanged', {
+              orderId: orderId.value,
+              status: OrderStatus.CANCELLED
+            })
+            
+            uni.showToast({
+              title: '订单已取消',
+              icon: 'success'
+            })
+          } else {
+            uni.showToast({
+              title: '取消订单失败: ' + (result.message || '未知错误'),
+              icon: 'none'
+            })
+          }
+        } catch (error) {
+          console.error('取消订单失败:', error)
+          uni.showToast({
+            title: '操作失败，请重试',
+            icon: 'none'
+          })
+        } finally {
+          uni.hideLoading()
+        }
       }
     }
   })

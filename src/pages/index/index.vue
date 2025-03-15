@@ -7,11 +7,16 @@ const userInfo = ref(null)
 const statusBarHeight = ref(0)
 const showMemberCode = ref(false)
 const couponList = ref([])
+const currentSwiperIndex = ref(0)
 
 // 获取优惠券列表
 const getCouponList = async () => {
-  const res = await getCouponListAPI()
-  couponList.value = res.data
+  // 只有token存在时，才获取优惠券列表
+  const token = wx.getStorageSync('token')
+  if (token) {
+    const res = await getCouponListAPI()
+    couponList.value = res.data
+  }
 }
 
 // 轮播图数据
@@ -74,16 +79,33 @@ const handleShowCouponList = () => {
   })
 }
 
+// 处理轮播图变化
+const handleSwiperChange = (e) => {
+  currentSwiperIndex.value = e.detail.current
+}
+
 </script>
 
 <template>
   <view class="layout">
     <!-- 轮播图部分 - 完全覆盖顶部 -->
-    <swiper class="swiper" circular autoplay interval="3000" duration="500">
-      <swiper-item v-for="(item, index) in bannerList" :key="index">
-        <image :src="item.image" mode="aspectFill" class="swiper-image" />
-      </swiper-item>
-    </swiper>
+    <view class="swiper-container">
+      <swiper 
+        class="swiper" 
+        circular 
+        autoplay 
+        interval="3000" 
+        duration="500" 
+        @change="handleSwiperChange"
+        :indicator-dots="true"
+        indicator-color="rgba(150, 150, 150, 0.5)"
+        indicator-active-color="#ffffff"
+      >
+        <swiper-item v-for="(item, index) in bannerList" :key="index">
+          <image :src="item.image" mode="aspectFill" class="swiper-image" />
+        </swiper-item>
+      </swiper>
+    </view>
     
     <!-- 渐变遮罩 - 覆盖导航栏区域 -->
     <view class="gradient-overlay"></view>
@@ -103,8 +125,8 @@ const handleShowCouponList = () => {
         <image :src="userInfo.avatarUrl || '/static/mine/avatar.png'" class="avatar" />
         <view class="text">
           <text class="username">{{ userInfo.nickName }}</text>
-          <text class="remind"  @tap="handleShowCouponList" v-if="couponList.length > 0">有{{ couponList.length }}张优惠券未使用，立即查看></text>
-          <text class="remind"  v-else>暂无优惠券可用哦</text>
+          <text class="remind" @tap="handleShowCouponList" v-if="couponList.length > 0">有{{ couponList.length }}张优惠券未使用，立即查看></text>
+          <text class="remind" v-else>暂无优惠券可用哦</text>
         </view>
         <view class="line1"></view>
         <view class="code" @tap="handleShowMemberCode">
@@ -214,7 +236,7 @@ const handleShowCouponList = () => {
   }
 }
 
-.swiper {
+.swiper-container {
   width: 100%;
   height: 580rpx;
   position: absolute;
@@ -222,11 +244,64 @@ const handleShowCouponList = () => {
   left: 0;
   right: 0;
   z-index: 1;
+}
+
+.swiper {
+  width: 100%;
+  height: 100%;
   
-  .swiper-image {
-    width: 100%;
-    height: 100%;
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 120rpx;
+    background: linear-gradient(to top, 
+      rgba(246, 246, 246, 1) 5%, 
+      rgba(246, 246, 246, 0.8) 25%, 
+      rgba(246, 246, 246, 0.4) 50%, 
+      rgba(246, 246, 246, 0)
+    );
+    z-index: 2;
   }
+}
+
+.swiper-image {
+  width: 100%;
+  height: 100%;
+}
+
+/* 调整轮播图指示器样式 - 微信小程序 */
+:deep(.wx-swiper-dots) {
+  bottom: 100rpx !important;
+}
+
+:deep(.wx-swiper-dot) {
+  width: 30rpx !important;
+  height: 6rpx !important;
+  border-radius: 3rpx !important;
+  margin: 0 6rpx !important;
+}
+
+:deep(.wx-swiper-dot-active) {
+  width: 40rpx !important;
+}
+
+/* 调整轮播图指示器样式 - uni-app通用 */
+:deep(.uni-swiper-dots) {
+  bottom: 100rpx !important;
+}
+
+:deep(.uni-swiper-dot) {
+  width: 30rpx !important;
+  height: 6rpx !important;
+  border-radius: 3rpx !important;
+  margin: 0 6rpx !important;
+}
+
+:deep(.uni-swiper-dot-active) {
+  width: 40rpx !important;
 }
 
 .gradient-overlay {
@@ -243,9 +318,15 @@ const handleShowCouponList = () => {
 .content-wrapper {
   flex: 1;
   padding: 20rpx 30rpx 30rpx;
-  margin-top: 480rpx;
+  margin-top: 490rpx;
   position: relative;
   z-index: 3;
+  background: linear-gradient(
+    to bottom, 
+    rgba(246, 246, 246, 0), 
+    rgba(246, 246, 246, 1) 60rpx, 
+    rgba(246, 246, 246, 1)
+  );
 }
 
 /* 用户信息区域 - 调整为更贴近图片的效果 */
@@ -255,38 +336,58 @@ const handleShowCouponList = () => {
   align-items: center;
   justify-content: space-between;
   background: #ffffff;
-  height: 100rpx;
+  height: 150rpx;
   border-radius: 16rpx;
+  margin-top: 20rpx;
   margin-bottom: 30rpx;
-  padding: 0 24rpx;
-  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+  padding: 40rpx;
+  box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.08);
   position: relative;
+  overflow: hidden;
   box-sizing: border-box;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    right: -60rpx;
+    top: -60rpx;
+    width: 200rpx;
+    height: 200rpx;
+    background: rgba(18, 150, 219, 0.05);
+    border-radius: 50%;
+    z-index: 0;
+  }
 
   .slogan {
-    font-size: 28rpx;
-    font-weight: 500;
+    font-size: 32rpx;
+    font-weight: 600;
     color: #333;
+    position: relative;
+    z-index: 1;
   }
 
   .login-btn {
     min-width: 140rpx;
-    height: 60rpx;
     background: linear-gradient(135deg, #1296db, #0f85c7);
-    border-radius: 30rpx;
-    padding: 0 24rpx;
-    font-size: 24rpx;
+    border-radius: 999rpx;
+    padding: 16rpx 42rpx;
+    font-size: 28rpx;
+    color: #fff;
+    font-weight: 500;
+    box-shadow: 0 6rpx 16rpx rgba(18, 150, 219, 0.15);
+    transition: all 0.3s ease;
+    line-height: 1.4;
+    letter-spacing: 2rpx;
     display: flex;
     justify-content: center;
     align-items: center;
-    color: #fff;
-    font-weight: 500;
-    box-shadow: 0 4rpx 12rpx rgba(18, 150, 219, 0.2);
-    transition: all 0.3s ease;
+    position: relative;
+    z-index: 1;
 
     &:active {
-      transform: scale(0.98);
-      box-shadow: 0 2rpx 6rpx rgba(18, 150, 219, 0.2);
+      transform: scale(0.97);
+      box-shadow: 0 2rpx 8rpx rgba(18, 150, 219, 0.2);
+      opacity: 0.92;
     }
   }
 }
@@ -297,11 +398,12 @@ const handleShowCouponList = () => {
   flex-direction: row;
   align-items: center;
   background: #ffffff;
-  height: 150rpx;
+  height: 150rpx; /* 确保与login-section一致 */
   border-radius: 16rpx;
+  margin-top: 20rpx; /* 确保与login-section一致 */
   margin-bottom: 30rpx;
   padding: 40rpx;
-  box-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.05);
+  box-shadow: 0 8rpx 20rpx rgba(0, 0, 0, 0.08); /* 与login-section一致 */
   position: relative;
   overflow: hidden;
   box-sizing: border-box;
