@@ -21,18 +21,21 @@ import com.han.cafe.mapper.ProductSpecMapper;
 import com.han.cafe.mapper.SpecMapper;
 import com.han.cafe.mapper.SpecValueMapper;
 import com.han.cafe.service.CategoryService;
+import com.han.cafe.utils.RedisUtils;
 import com.han.cafe.vo.CategoryProductVO;
 import com.han.cafe.vo.ProductSpecVO;
 import com.han.cafe.vo.ProductVO;
 import com.han.cafe.vo.SpecValueVO;
 
 import jakarta.annotation.Resource;
+import lombok.extern.slf4j.Slf4j;
 
 /**
 * @author MuY1eee
 * @description 针对表【category(商品分类表)】的数据库操作Service实现
 * @createDate 2025-03-04 20:14:37
 */
+@Slf4j
 @Service
 public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category>
     implements CategoryService{
@@ -48,6 +51,24 @@ public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category>
     
     @Resource
     private SpecValueMapper specValueMapper;
+    
+    @Resource
+    private RedisUtils redisUtils;
+    
+    // 缓存前缀，避免与其他业务的缓存key冲突
+    private static final String CACHE_KEY_PREFIX = "category:";
+    
+    // 分类列表的缓存key
+    private static final String CACHE_CATEGORY_LIST = CACHE_KEY_PREFIX + "list:enabled";
+    
+    // 分类详情的缓存key前缀
+    private static final String CACHE_CATEGORY_DETAIL = CACHE_KEY_PREFIX + "detail:";
+    
+    // 分类及商品的缓存key
+    private static final String CACHE_CATEGORY_PRODUCTS = CACHE_KEY_PREFIX + "with:products";
+    
+    // 缓存过期时间（24小时 = 86400秒）
+    private static final long CACHE_EXPIRE_TIME = 86400;
 
     @Override
     public List<CategoryProductVO> getCategoriesWithProducts() {
@@ -156,6 +177,136 @@ public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category>
             result.add(vo);
         }
 
+        return result;
+    }
+    
+    @Override
+    public List<CategoryProductVO> getCategoriesWithProductsFromCache() {
+        log.info("从缓存获取分类及商品数据");
+        // 尝试从缓存获取
+        Object cacheValue = redisUtils.get(CACHE_CATEGORY_PRODUCTS);
+        if (cacheValue != null) {
+            log.info("缓存命中：{}", CACHE_CATEGORY_PRODUCTS);
+            return (List<CategoryProductVO>) cacheValue;
+        }
+        
+        // 缓存未命中，从数据库查询
+        log.info("缓存未命中，从数据库查询分类及商品数据");
+        List<CategoryProductVO> result = getCategoriesWithProducts();
+        
+        // 将查询结果存入缓存
+        redisUtils.set(CACHE_CATEGORY_PRODUCTS, result, CACHE_EXPIRE_TIME);
+        log.info("分类及商品数据已存入缓存，过期时间：{}秒", CACHE_EXPIRE_TIME);
+        
+        return result;
+    }
+
+    @Override
+    public List<Category> listEnabledCategoriesFromCache() {
+        log.info("从缓存获取启用的分类列表");
+        // 尝试从缓存获取
+        Object cacheValue = redisUtils.get(CACHE_CATEGORY_LIST);
+        if (cacheValue != null) {
+            log.info("缓存命中：{}", CACHE_CATEGORY_LIST);
+            return (List<Category>) cacheValue;
+        }
+        
+        // 缓存未命中，从数据库查询
+        log.info("缓存未命中，从数据库查询启用的分类列表");
+        LambdaQueryWrapper<Category> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Category::getStatus, 1)
+                .orderByAsc(Category::getSortOrder);
+        List<Category> categories = this.list(queryWrapper);
+        
+        // 将查询结果存入缓存
+        redisUtils.set(CACHE_CATEGORY_LIST, categories, CACHE_EXPIRE_TIME);
+        log.info("启用的分类列表已存入缓存，过期时间：{}秒", CACHE_EXPIRE_TIME);
+        
+        return categories;
+    }
+
+    @Override
+    public Category getCategoryByIdFromCache(Integer categoryId) {
+        if (categoryId == null) {
+            return null;
+        }
+        
+        // 构造缓存key
+        String cacheKey = CACHE_CATEGORY_DETAIL + categoryId;
+        log.info("从缓存获取分类详情，cacheKey：{}", cacheKey);
+        
+        // 尝试从缓存获取
+        Object cacheValue = redisUtils.get(cacheKey);
+        if (cacheValue != null) {
+            log.info("缓存命中：{}", cacheKey);
+            return (Category) cacheValue;
+        }
+        
+        // 缓存未命中，从数据库查询
+        log.info("缓存未命中，从数据库查询分类详情");
+        Category category = this.getById(categoryId);
+        
+        // 如果数据库中存在该分类，则将其存入缓存
+        if (category != null) {
+            redisUtils.set(cacheKey, category, CACHE_EXPIRE_TIME);
+            log.info("分类详情已存入缓存，过期时间：{}秒", CACHE_EXPIRE_TIME);
+        } else {
+            // 对于不存在的数据，也缓存null值，但过期时间较短，避免缓存穿透
+            redisUtils.set(cacheKey, null, 60); // 60秒
+            log.info("空结果已存入缓存，过期时间：60秒（防止缓存穿透）");
+        }
+        
+        return category;
+    }
+
+    @Override
+    public void clearCategoryCache(Integer categoryId) {
+        if (categoryId == null) {
+            // 清除所有分类相关缓存
+            log.info("清除所有分类相关缓存");
+            redisUtils.delete(CACHE_CATEGORY_LIST);
+            redisUtils.delete(CACHE_CATEGORY_PRODUCTS);
+            
+            // TODO: 如果分类较多，这种方式不太合适，可能需要使用Redis的keys命令模糊匹配删除
+            // 此处简化处理，实际项目中可以考虑使用Redis的Scan命令
+        } else {
+            // 清除指定分类的缓存
+            log.info("清除分类ID为{}的缓存", categoryId);
+            String detailCacheKey = CACHE_CATEGORY_DETAIL + categoryId;
+            redisUtils.delete(detailCacheKey);
+            
+            // 同时清除分类列表和分类商品列表的缓存
+            redisUtils.delete(CACHE_CATEGORY_LIST);
+            redisUtils.delete(CACHE_CATEGORY_PRODUCTS);
+        }
+    }
+    
+    // 重写基础增删改方法，添加缓存处理逻辑
+    
+    @Override
+    public boolean save(Category entity) {
+        boolean result = super.save(entity);
+        if (result) {
+            clearCategoryCache(entity.getCategoryId());
+        }
+        return result;
+    }
+    
+    @Override
+    public boolean updateById(Category entity) {
+        boolean result = super.updateById(entity);
+        if (result) {
+            clearCategoryCache(entity.getCategoryId());
+        }
+        return result;
+    }
+    
+    @Override
+    public boolean removeById(Category entity) {
+        boolean result = super.removeById(entity);
+        if (result) {
+            clearCategoryCache(entity.getCategoryId());
+        }
         return result;
     }
 }

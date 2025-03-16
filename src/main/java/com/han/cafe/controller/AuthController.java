@@ -11,11 +11,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.han.cafe.common.R;
 import com.han.cafe.entity.User;
 import com.han.cafe.service.UserService;
 import com.han.cafe.service.WechatService;
 import com.han.cafe.utils.JwtTokenUtil;
+import com.han.cafe.utils.Result;
 import com.han.cafe.vo.LoginVO;
 import com.han.cafe.vo.RegisterVO;
 import com.han.cafe.vo.WechatLoginVO;
@@ -38,7 +38,7 @@ public class AuthController {
     // 注册
     @PostMapping(value = "/register", 
                 consumes = {MediaType.APPLICATION_JSON_VALUE})
-    public R<?> register(@Valid @RequestBody RegisterVO registerVO) {
+    public Result<?> register(@Valid @RequestBody RegisterVO registerVO) {
         try {
             // 注册用户
             User user = userService.register(registerVO);
@@ -57,16 +57,16 @@ public class AuthController {
             data.put("token", token);
             data.put("tokenType", "Bearer");
             data.put("userInfo", user);
-            return R.ok(data);
+            return Result.success(data);
         } catch (Exception e) {
-            return R.badRequest(e.getMessage());
+            return Result.badRequest(e.getMessage());
         }
     }
 
     // 登录
     @PostMapping(value = "/login", 
                 consumes = {MediaType.APPLICATION_JSON_VALUE})
-    public R<?> login(@Valid @RequestBody LoginVO loginVO) {
+    public Result<?> login(@Valid @RequestBody LoginVO loginVO) {
         try {
             // 登录并获取用户信息
             User user = userService.login(loginVO);
@@ -85,18 +85,18 @@ public class AuthController {
             data.put("token", token);
             data.put("tokenType", "Bearer");
             data.put("userInfo", user);
-            return R.ok(data);
+            return Result.success(data);
         } catch (BadCredentialsException e) {
-            return R.unauthorized("用户名或密码错误");
+            return Result.unauthorized("用户名或密码错误");
         } catch (Exception e) {
-            return R.error(e.getMessage());
+            return Result.fail(e.getMessage());
         }
     }
 
     // 微信一键登录
     @PostMapping(value = "/wechat/login",
                 consumes = {MediaType.APPLICATION_JSON_VALUE})
-    public R<?> wechatLogin(@Valid @RequestBody WechatLoginVO wechatLoginVO) {
+    public Result<?> wechatLogin(@Valid @RequestBody WechatLoginVO wechatLoginVO) {
         try {
             // 微信登录
             User user = wechatService.loginByWechat(wechatLoginVO);
@@ -116,9 +116,9 @@ public class AuthController {
             data.put("tokenType", "Bearer");
             data.put("userInfo", user);
             System.out.println("data: " + data);
-            return R.ok(data);
+            return Result.success(data);
         } catch (Exception e) {
-            return R.error("微信登录失败：" + e.getMessage());
+            return Result.fail("微信登录失败：" + e.getMessage());
         }
     }
 } 

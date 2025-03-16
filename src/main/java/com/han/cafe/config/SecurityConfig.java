@@ -63,7 +63,9 @@ public class SecurityConfig {
                     "/api/categories/**", 
                     "/api/orders/**",
                     "/api/coupons/**",
-                    "/api/admin/login"
+                    "/api/admin/login",
+                        "api/cache/**",
+                    "/api/products/**"
                 ).permitAll()
                 // 管理员接口需要ADMIN角色
                 .requestMatchers("/api/admin/**").hasAnyAuthority("ROLE_ADMIN", "ROLE_SUPER_ADMIN")

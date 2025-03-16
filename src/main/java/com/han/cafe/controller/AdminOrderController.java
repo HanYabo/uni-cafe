@@ -8,8 +8,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.han.cafe.common.ApiResponse;
 import com.han.cafe.service.OrderService;
+import com.han.cafe.utils.Result;
 import com.han.cafe.vo.AdminOrderDetailVO;
 
 import jakarta.annotation.Resource;
@@ -27,16 +27,16 @@ public class AdminOrderController {
      * 分页查询订单列表
      */
     @GetMapping
-    public ApiResponse<IPage<AdminOrderDetailVO>> getOrderPage(
+    public Result<IPage<AdminOrderDetailVO>> getOrderPage(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "10") Integer size,
             @RequestParam(required = false) Integer status) {
         try {
             IPage<AdminOrderDetailVO> orderPage = orderService.getAdminOrderPage(page, size, status);
-            return ApiResponse.success(orderPage);
+            return Result.success(orderPage);
         } catch (Exception e) {
             log.error("查询订单列表失败: {}", e.getMessage(), e);
-            return ApiResponse.error("查询订单列表失败: " + e.getMessage());
+            return Result.fail("查询订单列表失败: " + e.getMessage());
         }
     }
 
@@ -44,13 +44,13 @@ public class AdminOrderController {
      * 查询订单详情
      */
     @GetMapping("/{orderId}")
-    public ApiResponse<AdminOrderDetailVO> getOrderDetail(@PathVariable String orderId) {
+    public Result<AdminOrderDetailVO> getOrderDetail(@PathVariable String orderId) {
         try {
             AdminOrderDetailVO orderDetail = orderService.getAdminOrderDetail(orderId);
-            return ApiResponse.success(orderDetail);
+            return Result.success(orderDetail);
         } catch (Exception e) {
             log.error("查询订单详情失败: {}", e.getMessage(), e);
-            return ApiResponse.error("查询订单详情失败: " + e.getMessage());
+            return Result.fail("查询订单详情失败: " + e.getMessage());
         }
     }
 
@@ -58,19 +58,19 @@ public class AdminOrderController {
      * 更新订单状态
      */
     @PostMapping("/{orderId}/status")
-    public ApiResponse<Boolean> updateOrderStatus(
+    public Result<Boolean> updateOrderStatus(
             @PathVariable String orderId,
             @RequestParam(defaultValue = "2") Integer status) {
         try {
             // 如果订单处于已支付状态，则进行出餐处理
             if(orderService.getAdminOrderDetail(orderId).getStatus() == 1){
                 boolean result = orderService.updateOrderStatus(orderId, status);
-                return ApiResponse.success(result);
+                return Result.success(result);
             }
-            return ApiResponse.error("更新订单状态失败");
+            return Result.fail("更新订单状态失败");
         } catch (Exception e) {
             log.error("更新订单状态失败: {}", e.getMessage(), e);
-            return ApiResponse.error("更新订单状态失败: " + e.getMessage());
+            return Result.fail("更新订单状态失败: " + e.getMessage());
         }
     }
 

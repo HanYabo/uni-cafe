@@ -10,12 +10,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.han.cafe.common.ApiResponse;
 import com.han.cafe.entity.User;
 import com.han.cafe.exception.BusinessException;
 import com.han.cafe.mapper.UserMapper;
 import com.han.cafe.service.OrderService;
 import com.han.cafe.utils.JwtTokenUtil;
+import com.han.cafe.utils.Result;
 import com.han.cafe.vo.CreateOrderRequest;
 import com.han.cafe.vo.OrderResponse;
 
@@ -41,7 +41,7 @@ public class OrderController {
 
     // 创建订单
     @PostMapping
-    public ApiResponse<OrderResponse> createOrder(@RequestBody CreateOrderRequest request) {
+    public Result<OrderResponse> createOrder(@RequestBody CreateOrderRequest request) {
         String token = this.request.getHeader("Authorization");
         log.info("收到的Authorization header: {}", token);
         
@@ -118,7 +118,7 @@ public class OrderController {
             }
             
             OrderResponse order = orderService.createOrder(user.getUserId(), request);
-            return ApiResponse.success(order);
+            return Result.success(order);
         } catch (Exception e) {
             log.error("处理token时发生错误: {}", e.getMessage(), e);
             throw new BusinessException("Token验证失败：" + e.getMessage());
@@ -127,25 +127,25 @@ public class OrderController {
 
     // 根据OrderId获取单个订单详情
     @GetMapping("/{orderId}")
-    public ApiResponse<OrderResponse> getOrder(@PathVariable String orderId) {
+    public Result<OrderResponse> getOrder(@PathVariable String orderId) {
         OrderResponse order = orderService.getOrder(orderId);
-        return ApiResponse.success(order);
+        return Result.success(order);
     }
 
     // 实现模拟支付功能
     @PostMapping("/{orderId}/pay")
-    public ApiResponse<OrderResponse> payOrder(
+    public Result<OrderResponse> payOrder(
             @PathVariable String orderId,
             @RequestParam(defaultValue = "1") Integer payType) {
         OrderResponse order = orderService.payOrder(orderId, payType);
-        return ApiResponse.success(order);
+        return Result.success(order);
     }
     
     /**
      * 取消订单
      */
     @PostMapping("/{orderId}/cancel")
-    public ApiResponse<OrderResponse> cancelOrder(@PathVariable String orderId) {
+    public Result<OrderResponse> cancelOrder(@PathVariable String orderId) {
         String token = this.request.getHeader("Authorization");
         if (token == null) {
             throw new BusinessException("用户未登录");
@@ -178,7 +178,7 @@ public class OrderController {
             
             // 取消订单
             OrderResponse order = orderService.cancelOrder(orderId, currentUser.getUserId());
-            return ApiResponse.success(order);
+            return Result.success(order);
             
         } catch (Exception e) {
             log.error("取消订单时发生错误: {}", e.getMessage(), e);
@@ -188,7 +188,7 @@ public class OrderController {
     
     // 根据userId查询用户历史订单list
     @GetMapping("/history/{userId}")
-    public ApiResponse<List<OrderResponse>> getOrderHistory(@PathVariable Integer userId) {
+    public Result<List<OrderResponse>> getOrderHistory(@PathVariable Integer userId) {
         // 验证当前登录用户是否有权限查看该用户的订单
         String token = this.request.getHeader("Authorization");
         if (token == null) {
@@ -227,7 +227,7 @@ public class OrderController {
             
             // 获取订单列表
             List<OrderResponse> orders = orderService.getOrderHistory(userId);
-            return ApiResponse.success(orders);
+            return Result.success(orders);
             
         } catch (Exception e) {
             log.error("查询订单历史时发生错误: {}", e.getMessage(), e);
@@ -239,7 +239,7 @@ public class OrderController {
      * 删除订单
      */
     @PostMapping("/{orderId}/delete")
-    public ApiResponse<Void> deleteOrder(@PathVariable String orderId) {
+    public Result<Void> deleteOrder(@PathVariable String orderId) {
         String token = this.request.getHeader("Authorization");
         if (token == null) {
             throw new BusinessException("用户未登录");
@@ -248,7 +248,6 @@ public class OrderController {
         try {
             // 从token中获取用户标识
             String userIdentifier = jwtTokenUtil.getUsernameFromToken(token);
-            log.info("从token中解析出的用户标识: {}", userIdentifier);
             
             // 查找当前登录用户
             User currentUser = null;
@@ -272,9 +271,8 @@ public class OrderController {
             
             // 删除订单
             orderService.deleteOrder(orderId, currentUser.getUserId());
-            ApiResponse apiResponse = new ApiResponse(200, "删除订单成功", null);
-            return apiResponse;
-
+            return Result.success();
+            
         } catch (Exception e) {
             log.error("删除订单时发生错误: {}", e.getMessage(), e);
             throw new BusinessException("删除订单失败：" + e.getMessage());

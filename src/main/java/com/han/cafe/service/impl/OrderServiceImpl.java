@@ -33,6 +33,7 @@ import com.han.cafe.mapper.SpecValueMapper;
 import com.han.cafe.mapper.UserCouponMapper;
 import com.han.cafe.service.CouponService;
 import com.han.cafe.service.OrderService;
+import com.han.cafe.service.ProductService;
 import com.han.cafe.vo.AdminOrderDetailVO;
 import com.han.cafe.vo.CreateOrderRequest;
 import com.han.cafe.vo.OrderItemRequest;
@@ -63,6 +64,8 @@ public class OrderServiceImpl implements OrderService {
     private CouponService couponService;
     @Resource
     private UserCouponMapper userCouponMapper;
+    @Resource
+    private ProductService productService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -493,6 +496,7 @@ public class OrderServiceImpl implements OrderService {
     @Transactional
     public boolean updateOrderStatus(String orderId, Integer status) {
         Order order = orderMapper.selectById(orderId);
+
         if (order == null) {
             throw new BusinessException("订单不存在");
         }
@@ -500,6 +504,16 @@ public class OrderServiceImpl implements OrderService {
         // 检查状态变更是否合法
         if (!isValidStatusChange(order.getStatus(), status)) {
             throw new BusinessException("非法的状态变更");
+        }
+
+        // 订单完成时，更新商品销量并同步到Redis
+        if (status == 2) {
+            List<OrderItem> orderItems = orderItemMapper.selectByOrderId(orderId);
+            for (OrderItem orderItem : orderItems) {
+                // 使用ProductService的incrementProductSales方法更新销量并同步到Redis
+                productService.incrementProductSales(orderItem.getProductId(), orderItem.getQuantity());
+                log.info("订单[{}]完成，更新商品[{}]销量：+{}", orderId, orderItem.getProductId(), orderItem.getQuantity());
+            }
         }
 
         order.setStatus(status);
