@@ -260,9 +260,11 @@ const cancelOrder = () => {
     mask: true
   })
   // 直接返回到订单详情
-  uni.switchTab({
-    url: '/pages/record/index'
-  })
+  setTimeout(() => {
+    uni.switchTab({
+      url: '/pages/record/index'
+    })
+  }, 1000)
 }
 
 // 提交订单

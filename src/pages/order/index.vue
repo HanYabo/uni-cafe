@@ -1,10 +1,13 @@
 <script setup>
 import { getCategoryWithProducts } from '@/api/category'
+import { getHotProducts } from '@/api/product'
 import { onShow } from '@dcloudio/uni-app'
 import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 
 // 分类数据
 const categories = ref(null)
+// 热门畅销商品数据
+const hotProducts = ref([])
 
 const baseUrl = 'http://localhost:9000'
 
@@ -28,7 +31,24 @@ onShow(async () => {
 const fetchCategoryData = async () => {
   try {
     const res = await getCategoryWithProducts()
-    categories.value = res.data
+    
+    // 获取热门商品数据
+    const hotRes = await getHotProducts()
+    hotProducts.value = hotRes.data || []
+    
+    // 创建热门畅销分类
+    const hotCategory = {
+      categoryId: 'hot-selling',
+      name: '热门畅销',
+      products: hotProducts.value
+    }
+    
+    // 添加热门畅销分类到分类列表最前面
+    const categoriesData = [...(res.data || [])]
+    categoriesData.unshift(hotCategory)
+    
+    categories.value = categoriesData
+    
     // 确保在数据加载后设置当前分类
     if (categories.value && categories.value.length > 0) {
       currentCategory.value = 0
@@ -727,7 +747,7 @@ const handleCheckout = () => {
             <text class="product-name">{{ product.name }}</text>
                 <text class="product-desc">{{ product.description }}</text>
             <view class="tags">
-                  <text class="tag">甄选品质</text>
+                  <text class="tag">月销{{ product.monthSales }}</text>
             </view>
             <view class="product-bottom">
               <view class="price">

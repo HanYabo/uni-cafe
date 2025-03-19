@@ -1,6 +1,7 @@
 <script setup>
-import { cancelOrderAPI, deleteOrderAPI, getHistoryOrderAPI, getOrderDetailAPI } from '@/api/order';
+import { cancelOrderAPI, deleteOrderAPI, getHistoryOrderAPI } from '@/api/order';
 import { formatTime } from '@/utils/format';
+import { reorderItems } from '@/utils/order'; // 从工具函数文件导入
 import { onLoad, onShow } from '@dcloudio/uni-app';
 import { computed, onUnmounted, ref, watch } from 'vue';
 import { payOrderAPI } from '../../api/order';
@@ -426,59 +427,6 @@ const handlePayOrAgain = (orderId, status) => {
   } else {
     // 再来一单功能
     reorderItems(orderId)
-  }
-}
-
-// 实现再来一单功能
-const reorderItems = async (orderId) => {
-  uni.showLoading({ title: '正在加载订单...' })
-  try {
-    // 获取订单详情
-    const res = await getOrderDetailAPI(orderId)
-    if (res.code === 200) {
-      const orderDetail = res.data
-      
-      // 清空当前购物袋
-      uni.$emit('clearShoppingCart')
-      
-      // 跳转到点单页面
-      uni.switchTab({
-        url: '/pages/order/index',
-        success: () => {
-          // 使用延时确保页面加载完成后再添加商品
-          setTimeout(() => {
-            // 将订单中的商品添加到购物袋
-            uni.$emit('addItemsToCart', {
-              items: orderDetail.items.map(item => ({
-                productId: item.productId,
-                name: item.productName,
-                desc: item.specs.map(spec => spec.specValue).join('，') || '',
-                unitPrice: item.actualPrice, // 单价
-                price: item.basePrice,
-                quantity: item.quantity,
-                image: item.mainImage,
-                specs: item.specs || [],
-                selected: true // 默认选中
-              }))
-            })
-          }, 500)
-        }
-      })
-    } else {
-      uni.showToast({
-        title: '获取订单信息失败',
-        icon: 'error'
-      })
-    }
-  } catch (error) {
-    console.error('再来一单失败:', error)
-    uni.showToast({
-      title: '操作失败，请重试',
-      icon: 'error'
-    })
-  } finally {
-    // 确保无论成功失败都关闭loading
-    uni.hideLoading()
   }
 }
 

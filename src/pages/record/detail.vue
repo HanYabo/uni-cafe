@@ -100,6 +100,7 @@
 <script setup>
 import { cancelOrderAPI, getOrderDetailAPI, payOrderAPI } from '@/api/order';
 import { formatTime } from '@/utils/format';
+import { reorderItems } from '@/utils/order'; // 从工具函数文件导入
 import { onLoad, onShow, onUnload } from '@dcloudio/uni-app';
 import { ref } from 'vue';
 
@@ -245,54 +246,8 @@ const handleContact = () => {
 
 // 再来一单
 const handleReorder = async () => {
-  try {
-    // 获取订单详情（已经有order.value数据，可直接使用）
-    if (order.value) {
-      // 清空当前购物袋
-      uni.$emit('clearShoppingCart')
-      
-      // 跳转到点单页面
-      uni.switchTab({
-        url: '/pages/order/index',
-        success: () => {
-          // 使用延时确保页面加载完成后再添加商品
-          setTimeout(() => {
-            // 将订单中的商品添加到购物袋
-            uni.$emit('addItemsToCart', {
-              items: order.value.items.map(item => ({
-                productId: item.productId,
-                categoryId: item.categoryId,
-                name: item.name,
-                desc: item.specText || '',
-                unitPrice: item.price, // 单价
-                price: item.price,
-                quantity: item.quantity,
-                image: item.image,
-                specs: item.specs || [],
-                selected: true // 默认选中
-              }))
-            })
-            
-            uni.showToast({
-              title: '已将商品添加到购物袋',
-              icon: 'success'
-            })
-          }, 500)
-        }
-      })
-    } else {
-      uni.showToast({
-        title: '订单信息不完整',
-        icon: 'error'
-      })
-    }
-  } catch (error) {
-    console.error('再来一单失败:', error)
-    uni.showToast({
-      title: '操作失败，请重试',
-      icon: 'error'
-    })
-  }
+  // 直接调用导入的reorderItems函数
+  reorderItems(orderId.value);
 }
 
 // 立即支付
@@ -502,7 +457,7 @@ const getStatusDesc = (status) => {
   border-radius: 16rpx;
   padding: 30rpx;
   margin-bottom: 24rpx;
-  
+
   .goods-list {
     max-height: 60vh; // 设置最大高度
     overflow-y: auto; // 允许垂直滚动
