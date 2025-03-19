@@ -1,6 +1,6 @@
 <script setup>
 import { register } from '@/api/user'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 const form = ref({
   mobile: '',
@@ -8,98 +8,124 @@ const form = ref({
   confirmPassword: ''
 })
 
+// 添加密码校验相关的响应式变量
+const passwordError = ref('')
+const showPasswordError = ref(false)
+
+// 计算密码是否匹配
+const isPasswordMatch = computed(() => {
+  return form.value.password === form.value.confirmPassword
+})
+
+// 监听密码变化
+const handlePasswordChange = () => {
+  if (form.value.confirmPassword) {
+    showPasswordError.value = true
+    if (!isPasswordMatch.value) {
+      passwordError.value = '两次密码输入不一致'
+    } else {
+      passwordError.value = ''
+    }
+  }
+}
+
+// 监听确认密码变化
+const handleConfirmPasswordChange = () => {
+  showPasswordError.value = true
+  if (!isPasswordMatch.value) {
+    passwordError.value = '两次密码输入不一致'
+  } else {
+    passwordError.value = ''
+  }
+}
+
 // 表单验证
 const validateForm = () => {
   if (!form.value.mobile) {
-    wx.showToast({
+    uni.showToast({
       title: '请输入手机号',
       icon: 'none'
     })
     return false
   }
-  
+
   if (!/^1[3-9]\d{9}$/.test(form.value.mobile)) {
-    wx.showToast({
+    uni.showToast({
       title: '手机号格式不正确',
       icon: 'none'
     })
     return false
   }
-  
+
   if (!form.value.password) {
-    wx.showToast({
+    uni.showToast({
       title: '请设置密码',
       icon: 'none'
     })
     return false
   }
-  
+
   if (form.value.password.length < 6) {
-    wx.showToast({
+    uni.showToast({
       title: '密码不能少于6位',
       icon: 'none'
     })
     return false
   }
-  
-  if (form.value.password !== form.value.confirmPassword) {
-    wx.showToast({
+
+  if (!isPasswordMatch.value) {
+    uni.showToast({
       title: '两次密码输入不一致',
       icon: 'none'
     })
     return false
   }
-  
+
   return true
 }
 
 // 提交注册
 const handleSubmit = async () => {
   if (!validateForm()) return
-  
-  try {
-    wx.showLoading({
+
+    uni.showLoading({
       title: '注册中...'
     })
-    
+
     const data = {
       mobile: form.value.mobile,
       password: form.value.password
     }
-    
-    const res = await register(data)
-    console.log(res)
 
-    
-    // 保存token和用户信息
-    wx.setStorageSync('token', res.data.token)
-    wx.setStorageSync('userInfo', res.data.userInfo)
-    
-    wx.hideLoading()
-    wx.showToast({
-      title: '注册成功',
-      icon: 'success'
-    })
-    
-    // 直接跳转到首页
-    setTimeout(() => {
-      wx.switchTab({
-        url: '/pages/index/index'
+    const res = await register(data)
+
+    if (res.code === 200) {
+      uni.setStorageSync('userInfo', res.data)
+      uni.setStorageSync('token', res.token)
+      uni.hideLoading()
+      uni.showToast({
+        title: '注册成功',
+        icon: 'success'
       })
-    }, 1500)
-    
-  } catch (error) {
-    wx.hideLoading()
-    wx.showToast({
-      title: error.message || '注册失败',
-      icon: 'none'
-    })
-  }
-}
+
+      // 直接跳转到首页
+      setTimeout(() => {
+        uni.switchTab({
+          url: '/pages/index/index'
+        })
+      }, 1500)
+    }else {
+      uni.hideLoading()
+      uni.showToast({
+        title: res.message || '注册失败',
+        icon: 'none'
+      })
+    }
+  } 
 
 // 返回登录页
 const handleLogin = () => {
-  wx.navigateBack()
+  uni.navigateBack()
 }
 </script>
 
@@ -114,31 +140,31 @@ const handleLogin = () => {
       <view class="input-group">
         <view class="input-wrapper">
           <text class="iconfont icon-phone input-icon"></text>
+          <input type="number" v-model="form.mobile" maxlength="11" placeholder="请输入手机号" class="input-item" />
+        </view>
+        <view class="input-wrapper">
+          <text class="iconfont icon-lock input-icon"></text>
           <input 
-            type="number" 
-            v-model="form.mobile" 
-            maxlength="11"
-            placeholder="请输入手机号"
-            class="input-item"
+            type="password" 
+            v-model="form.password" 
+            placeholder="请设置密码" 
+            class="input-item" 
+            @input="handlePasswordChange"
           />
         </view>
         <view class="input-wrapper">
           <text class="iconfont icon-lock input-icon"></text>
           <input 
             type="password" 
-            v-model="form.password"
-            placeholder="请设置密码"
-            class="input-item"
+            v-model="form.confirmPassword" 
+            placeholder="请确认密码" 
+            class="input-item" 
+            @input="handleConfirmPasswordChange"
           />
         </view>
-        <view class="input-wrapper">
-          <text class="iconfont icon-lock input-icon"></text>
-          <input 
-            type="password" 
-            v-model="form.confirmPassword"
-            placeholder="请确认密码"
-            class="input-item"
-          />
+        <!-- 添加错误提示 -->
+        <view class="error-message" v-if="showPasswordError && passwordError">
+          <text class="error-text">{{ passwordError }}</text>
         </view>
       </view>
 
@@ -205,7 +231,7 @@ const handleLogin = () => {
 
 .input-wrapper {
   position: relative;
-  margin-bottom: 24rpx;
+  margin-bottom: 12rpx; // 减小底部间距，为错误提示留出空间
   display: flex;
   align-items: center;
   background-color: $uni-bg-color-grey;
@@ -231,7 +257,7 @@ const handleLogin = () => {
   font-size: 28rpx;
   background: transparent;
   box-sizing: border-box;
-  
+
   &::placeholder {
     color: $uni-text-color-placeholder;
   }
@@ -257,7 +283,7 @@ const handleLogin = () => {
   background: linear-gradient(135deg, #1296db, #0f85c7);
   color: #fff;
   box-shadow: 0 4rpx 12rpx rgba(18, 150, 219, 0.2);
-  
+
   &.button-hover {
     opacity: 0.9;
     transform: translateY(2rpx);
@@ -295,4 +321,15 @@ const handleLogin = () => {
     margin: 0 8rpx;
   }
 }
-</style> 
+
+// 添加错误提示样式
+.error-message {
+  padding: 8rpx 30rpx;
+  margin-bottom: 24rpx;
+  
+  .error-text {
+    font-size: 24rpx;
+    color: #ff4d4f;
+  }
+}
+</style>

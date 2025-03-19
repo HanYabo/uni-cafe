@@ -12,7 +12,7 @@ const BASE_URL = process.env.NODE_ENV === 'development'
 const requestInterceptor = (config) => {
   // 在开发环境下，如果是在真机调试，使用本地IP地址
   if (process.env.NODE_ENV === 'development') {
-    const systemInfo = wx.getSystemInfoSync()
+    const systemInfo = uni.getSystemInfoSync()
     // 如果是真机环境
     if (!systemInfo.platform.includes('devtools')) {
       // 替换成电脑的本地IP地址
@@ -20,7 +20,7 @@ const requestInterceptor = (config) => {
     }
   }
 
-  const token = wx.getStorageSync('token')
+  const token = uni.getStorageSync('token')
   if (token) {
     config.header = {
       ...config.header,
@@ -37,19 +37,22 @@ const responseInterceptor = (response) => {
     return data
   }
   
-  // TODO: 处理错误情况
-  if (statusCode === 401) {
-    // token过期，清除本地存储并跳转到登录页
-    wx.clearStorageSync()
-    wx.navigateTo({
-      url: '/pages/login/index'
+  //  处理错误情况
+  if (statusCode === 403) {
+    uni.showToast({
+      title: '登录过期，请重新登录',
+      icon: 'none'
     })
+
+    uni.clearStorageSync()
+    
+    setTimeout(() => {
+      uni.navigateTo({
+        url: '/pages/login/index'
+      })
+    }, 1500)
   }
   
-  wx.showToast({
-    title: data.message || '请求失败',
-    icon: 'none'
-  })
   return Promise.reject(data)
 }
 
@@ -58,14 +61,14 @@ export const request = (options) => {
   return new Promise((resolve, reject) => {
     const config = requestInterceptor(options)
     
-    wx.request({
+    uni.request({
       ...config,
       url: `${BASE_URL}${config.url}`,
       success: (res) => {
         resolve(responseInterceptor(res))
       },
       fail: (error) => {
-        wx.showToast({
+        uni.showToast({
           title: '网络错误',
           icon: 'none'
         })
