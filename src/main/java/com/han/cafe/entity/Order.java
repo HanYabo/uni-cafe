@@ -3,9 +3,7 @@ package com.han.cafe.entity;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
 
 import lombok.Data;
 
@@ -28,4 +26,9 @@ public class Order {
     private String remark;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    
+    /**
+     * 是否删除：0-未删除 1-已删除
+     */
+    private Integer isDeleted;
 } 

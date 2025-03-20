@@ -50,6 +50,7 @@
         LEFT JOIN order_item oi ON o.order_id = oi.order_id
         LEFT JOIN order_item_spec ois ON oi.item_id = ois.item_id
         <where>
+            o.is_deleted = 0
             <if test="status != null">
                 AND o.status = #{status}
             </if>
@@ -71,6 +72,6 @@
         LEFT JOIN user u ON o.user_id = u.user_id
         LEFT JOIN order_item oi ON o.order_id = oi.order_id
         LEFT JOIN order_item_spec ois ON oi.item_id = ois.item_id
-        WHERE o.order_id = #{orderId}
+        WHERE o.order_id = #{orderId} AND o.is_deleted = 0
     </select>
 </mapper> 

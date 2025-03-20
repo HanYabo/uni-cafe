@@ -1,5 +1,6 @@
 package com.han.cafe.controller;
 
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -62,8 +63,10 @@ public class AdminOrderController {
             @PathVariable String orderId,
             @RequestParam(defaultValue = "2") Integer status) {
         try {
+            // 获取订单信息
+            AdminOrderDetailVO orderDetail = orderService.getAdminOrderDetail(orderId);
             // 如果订单处于已支付状态，则进行出餐处理
-            if(orderService.getAdminOrderDetail(orderId).getStatus() == 1){
+            if (orderDetail != null && orderDetail.getStatus() == 1) {
                 boolean result = orderService.updateOrderStatus(orderId, status);
                 return Result.success(result);
             }
@@ -73,5 +76,24 @@ public class AdminOrderController {
             return Result.fail("更新订单状态失败: " + e.getMessage());
         }
     }
-
+    
+    /**
+     * 删除订单
+     * 管理员只能删除待支付状态(status=0)的订单
+     */
+    @DeleteMapping("/{orderId}")
+    public Result<Boolean> deleteOrder(@PathVariable String orderId) {
+        try {
+            log.info("管理员请求删除订单: {}", orderId);
+            boolean result = orderService.adminDeleteOrder(orderId);
+            if (result) {
+                return Result.success(true, "订单删除成功");
+            } else {
+                return Result.success(false, "订单删除失败");
+            }
+        } catch (Exception e) {
+            log.error("管理员删除订单失败: {}", e.getMessage(), e);
+            return Result.fail("删除订单失败: " + e.getMessage());
+        }
+    }
 } 

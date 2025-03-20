@@ -150,6 +150,7 @@ public class OrderServiceImpl implements OrderService {
         order.setPayAmount(payAmount);
         order.setStatus(0);
         order.setRemark(request.getRemark());
+        order.setIsDeleted(0);
         
         orderMapper.insert(order);
         
@@ -167,7 +168,12 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     public OrderResponse getOrder(String orderId) {
-        Order order = orderMapper.selectById(orderId);
+        // 构建查询条件，只查询未删除的订单
+        LambdaQueryWrapper<Order> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Order::getOrderId, orderId)
+                   .eq(Order::getIsDeleted, 0);  // 未删除状态
+        
+        Order order = orderMapper.selectOne(queryWrapper);
         if (order == null) {
             throw new BusinessException("订单不存在");
         }
@@ -183,7 +189,13 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public OrderResponse payOrder(String orderId, Integer payType) {
-        Order order = orderMapper.selectById(orderId);
+        // 构建查询条件，只查询未删除的订单
+        LambdaQueryWrapper<Order> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Order::getOrderId, orderId)
+                   .eq(Order::getIsDeleted, 0);  // 未删除状态
+        
+        Order order = orderMapper.selectOne(queryWrapper);
+        
         if (order == null) {
             throw new BusinessException("订单不存在");
         }
@@ -200,12 +212,12 @@ public class OrderServiceImpl implements OrderService {
         // 如果使用了优惠券，更新优惠券状态
         if (order.getCouponId() != null) {
             // 查找用户优惠券记录
-            LambdaQueryWrapper<UserCoupon> queryWrapper = new LambdaQueryWrapper<>();
-            queryWrapper.eq(UserCoupon::getUserId, order.getUserId())
+            LambdaQueryWrapper<UserCoupon> queryWrapper2 = new LambdaQueryWrapper<>();
+            queryWrapper2.eq(UserCoupon::getUserId, order.getUserId())
                        .eq(UserCoupon::getCouponId, order.getCouponId())
                        .eq(UserCoupon::getStatus, 0);  // 状态为未使用
             
-            UserCoupon userCoupon = userCouponMapper.selectOne(queryWrapper);
+            UserCoupon userCoupon = userCouponMapper.selectOne(queryWrapper2);
             if (userCoupon != null) {
                 // 更新优惠券状态为已使用
                 userCoupon.setStatus(1);  // 1-已使用
@@ -228,6 +240,7 @@ public class OrderServiceImpl implements OrderService {
         // 构建查询条件
         LambdaQueryWrapper<Order> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(Order::getUserId, userId)
+                   .eq(Order::getIsDeleted, 0)  // 只查询未删除的订单
                    .orderByDesc(Order::getCreatedAt);  // 按创建时间倒序排列
         
         // 查询订单列表
@@ -255,8 +268,13 @@ public class OrderServiceImpl implements OrderService {
     public OrderResponse cancelOrder(String orderId, Integer userId) {
         log.info("开始取消订单，orderId: {}, userId: {}", orderId, userId);
         
-        // 查询订单
-        Order order = orderMapper.selectById(orderId);
+        // 查询订单，只查询未删除的订单
+        LambdaQueryWrapper<Order> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(Order::getOrderId, orderId)
+                   .eq(Order::getIsDeleted, 0);  // 未删除状态
+        
+        Order order = orderMapper.selectOne(queryWrapper);
+        
         if (order == null) {
             throw new BusinessException("订单不存在");
         }
@@ -283,12 +301,12 @@ public class OrderServiceImpl implements OrderService {
         if (order.getCouponId() != null) {
             try {
                 // 查找用户优惠券记录
-                LambdaQueryWrapper<UserCoupon> queryWrapper = new LambdaQueryWrapper<>();
-                queryWrapper.eq(UserCoupon::getUserId, userId)
+                LambdaQueryWrapper<UserCoupon> couponQueryWrapper = new LambdaQueryWrapper<>();
+                couponQueryWrapper.eq(UserCoupon::getUserId, userId)
                           .eq(UserCoupon::getCouponId, order.getCouponId())
                           .eq(UserCoupon::getOrderId, orderId);
                 
-                UserCoupon userCoupon = userCouponMapper.selectOne(queryWrapper);
+                UserCoupon userCoupon = userCouponMapper.selectOne(couponQueryWrapper);
                 if (userCoupon != null) {
                     // 重置优惠券状态为未使用
                     userCoupon.setStatus(0);  // 0-未使用
@@ -313,7 +331,7 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void deleteOrder(String orderId, Integer userId) {
-        log.info("开始删除订单，orderId: {}, userId: {}", orderId, userId);
+        log.info("开始逻辑删除订单，orderId: {}, userId: {}", orderId, userId);
         
         // 查询订单
         Order order = orderMapper.selectById(orderId);
@@ -335,24 +353,12 @@ public class OrderServiceImpl implements OrderService {
         }
         
         try {
-            // 1. 查询并删除订单项规格
-            List<OrderItem> orderItems = orderItemMapper.selectByOrderId(orderId);
-            for (OrderItem item : orderItems) {
-                // 删除订单项规格
-                LambdaQueryWrapper<OrderItemSpec> specWrapper = new LambdaQueryWrapper<>();
-                specWrapper.eq(OrderItemSpec::getItemId, item.getItemId());
-                orderItemSpecMapper.delete(specWrapper);
-            }
-            
-            // 2. 删除订单项
-            LambdaQueryWrapper<OrderItem> itemWrapper = new LambdaQueryWrapper<>();
-            itemWrapper.eq(OrderItem::getOrderId, orderId);
-            orderItemMapper.delete(itemWrapper);
-            
-            // 3. 删除订单主表
-            orderMapper.deleteById(orderId);
-            
-            log.info("订单 {} 及其关联数据已成功删除", orderId);
+            // 设置订单为已删除状态
+            order.setIsDeleted(1);
+            order.setUpdatedAt(LocalDateTime.now());
+            orderMapper.updateById(order);
+
+            log.info("订单 {} 已成功标记为删除状态", orderId);
             
         } catch (Exception e) {
             log.error("删除订单时发生错误", e);
@@ -369,6 +375,7 @@ public class OrderServiceImpl implements OrderService {
         // 查询超时的待支付订单
         LambdaQueryWrapper<Order> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(Order::getStatus, 0)  // 待支付状态
+                   .eq(Order::getIsDeleted, 0)  // 未删除状态
                    .le(Order::getCreatedAt, timeoutTime);  // 创建时间小于等于10分钟前
         
         List<Order> timeoutOrders = orderMapper.selectList(queryWrapper);
@@ -486,8 +493,40 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public AdminOrderDetailVO getAdminOrderDetail(String orderId) {
         AdminOrderDetailVO orderDetail = orderMapper.selectAdminOrderDetail(orderId);
-        if (orderDetail == null) {
-            throw new BusinessException("订单不存在");
+        if (orderDetail != null) {
+            // 这里需要手动获取订单项和规格信息
+            List<OrderItem> orderItems = orderItemMapper.selectByOrderId(orderId);
+            List<AdminOrderDetailVO.OrderItemDetail> itemDetails = new ArrayList<>();
+            
+            for (OrderItem item : orderItems) {
+                AdminOrderDetailVO.OrderItemDetail itemDetail = new AdminOrderDetailVO.OrderItemDetail();
+                itemDetail.setItemId(item.getItemId());
+                itemDetail.setProductId(item.getProductId());
+                itemDetail.setProductName(item.getProductName());
+                itemDetail.setBasePrice(item.getBasePrice());
+                itemDetail.setActualPrice(item.getActualPrice());
+                itemDetail.setQuantity(item.getQuantity());
+                itemDetail.setSubtotal(item.getSubtotal());
+                
+                // 获取订单项规格
+                List<OrderItemSpec> specs = orderItemSpecMapper.selectByItemId(item.getItemId());
+                List<AdminOrderDetailVO.OrderItemSpecDetail> specDetails = new ArrayList<>();
+                
+                for (OrderItemSpec spec : specs) {
+                    AdminOrderDetailVO.OrderItemSpecDetail specDetail = new AdminOrderDetailVO.OrderItemSpecDetail();
+                    specDetail.setSpecId(spec.getSpecId());
+                    specDetail.setSpecName(spec.getSpecName());
+                    specDetail.setSpecValueId(spec.getSpecValueId());
+                    specDetail.setSpecValue(spec.getSpecValue());
+                    specDetail.setExtraPrice(spec.getExtraPrice());
+                    specDetails.add(specDetail);
+                }
+                
+                itemDetail.setSpecs(specDetails);
+                itemDetails.add(itemDetail);
+            }
+            
+            orderDetail.setItems(itemDetails);
         }
         return orderDetail;
     }
@@ -538,5 +577,58 @@ public class OrderServiceImpl implements OrderService {
             return false;
         }
         return true;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean adminDeleteOrder(String orderId) {
+        log.info("管理员开始逻辑删除订单，orderId: {}", orderId);
+        
+        // 查询订单
+        Order order = orderMapper.selectById(orderId);
+        if (order == null) {
+            log.error("订单不存在，orderId: {}", orderId);
+            throw new BusinessException("订单不存在");
+        }
+        
+        // 只允许删除待支付状态的订单
+        if (order.getStatus() != 0) {
+            String statusText = getStatusText(order.getStatus());
+            log.error("管理员尝试删除非待支付状态的订单，orderId: {}, 当前状态: {}", orderId, statusText);
+            throw new BusinessException("只能删除待支付状态的订单，当前订单状态为：" + statusText);
+        }
+        
+        try {
+            // 如果订单使用了优惠券，恢复优惠券状态
+            if (order.getCouponId() != null) {
+                LambdaQueryWrapper<UserCoupon> couponWrapper = new LambdaQueryWrapper<>();
+                couponWrapper.eq(UserCoupon::getUserId, order.getUserId())
+                         .eq(UserCoupon::getCouponId, order.getCouponId())
+                         .eq(UserCoupon::getOrderId, orderId);
+                
+                UserCoupon userCoupon = userCouponMapper.selectOne(couponWrapper);
+                if (userCoupon != null) {
+                    // 重置优惠券状态为未使用
+                    userCoupon.setStatus(0);  // 0-未使用
+                    userCoupon.setOrderId(null);
+                    userCoupon.setUsedTime(null);
+                    userCoupon.setUpdatedAt(LocalDateTime.now());
+                    userCouponMapper.updateById(userCoupon);
+                    log.info("管理员删除订单后恢复优惠券，userId: {}, couponId: {}", order.getUserId(), order.getCouponId());
+                }
+            }
+            
+            // 设置订单为已删除状态
+            order.setIsDeleted(1);
+            order.setUpdatedAt(LocalDateTime.now());
+            boolean result = orderMapper.updateById(order) > 0;
+            
+            log.info("管理员已成功将订单 {} 标记为删除状态", orderId);
+            return result;
+            
+        } catch (Exception e) {
+            log.error("管理员删除订单时发生错误", e);
+            throw new BusinessException("删除订单失败：" + e.getMessage());
+        }
     }
 } 

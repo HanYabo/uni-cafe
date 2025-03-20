@@ -53,4 +53,11 @@ public interface OrderService {
      * 管理员更新订单状态
      */
     boolean updateOrderStatus(String orderId, Integer status);
+    
+    /**
+     * 管理员删除订单
+     * @param orderId 订单ID
+     * @return 删除是否成功
+     */
+    boolean adminDeleteOrder(String orderId);
 } 
